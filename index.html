@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cyclo — Spike 0 (the core, in WASM)</title>
+<title>Cyclo — Spike 1 (the engine, in WASM)</title>
 <style>
   :root{
     --ink0:#070b0a; --ink1:#0b1310; --ink2:#0f1d18;
@@ -59,12 +59,13 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow"><span class="dot"></span>Cyclo · Spike 0 · the brain in a browser</div>
-    <h1>The real core, compiled to <span class="g">WebAssembly</span>.</h1>
+    <div class="eyebrow"><span class="dot"></span>Cyclo · Spike 1 · the brain, the voices &amp; the room</div>
+    <h1>The real engine, compiled to <span class="g">WebAssembly</span>.</h1>
     <p class="lede">Every event below is scheduled by <b>src/core</b> — Cyclo's actual C++ parser and
-      Tidal-style pattern engine — compiled to WASM and running in this page, <b>unchanged</b>. And now
-      every sound is Cyclo's <b>real synthesized kit</b> (<b>src/engine/SynthKit</b>), the same 808 +
-      guitar/bass voices as the native app, also compiled to WASM. Edit the code; it re-compiles live.</p>
+      Tidal-style pattern engine — compiled to WASM and running in this page, <b>unchanged</b>. Every sound
+      is Cyclo's <b>real synthesized kit</b> (<b>SynthKit</b>), and the space is Cyclo's <b>real reverb</b>
+      (<b>ReverbUnit</b>'s Freeverb, rendered to an impulse response) — the same voices and room as the
+      native app, in WASM. Edit the code; it re-compiles live.</p>
   </header>
 
   <div class="machine">
@@ -81,10 +82,10 @@
 s("bd - sn -, hh*4")
 
 ## PERC
-s("- cp - -, oh*2")
+s("- cp - -, oh*2").reverb(0.4)
 
 ## BLEEP
-s("bd(3,8)").speed(2).gain(0.5)</textarea>
+s("bd(3,8)").speed(2).gain(0.5).drive(0.5)</textarea>
       </div>
       <div class="m-side">
         <div class="transport">
@@ -98,19 +99,21 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     <div class="status" id="status">■ stopped</div>
   </div>
   <p class="note"><b>What's real here:</b> the mini-notation parsing, euclid <code>bd(3,8)</code>,
-    alternation, stacks, <code>.speed/.gain/.lpf</code>, <b>and the voices themselves</b> — the exact
-    <code>synthesizeKitSample</code> synthesis (bit-identical, seeded RNG and all), all the same C++
-    that runs the native app, now in WASM. <b>What's still simplified:</b> the effects + master chain
-    (reverb / delay / drive / crush) use light Web-Audio stand-ins — the engine's real DSP moves into an
-    AudioWorklet next. Same brain, same voices.</p>
+    alternation, stacks, the <b>voices</b> (the exact bit-identical <code>synthesizeKitSample</code>),
+    the <b>reverb</b> (<code>ReverbUnit</code>'s impulse response), the <b>drive</b> curve
+    (<code>voiceDrive</code>) and the <b>master soft-clip</b> (<code>tanh(1.5x)</code>) — all the same C++
+    that runs the native app. <b>What's still simplified:</b> delay and the LFO effects (trem / chorus /
+    phaser / ring / fold …) — next spike. The default beat above already sends the claps to the real room
+    and drives the bleep. Same brain, same voices, same space.</p>
 </div>
 
 <script src="cyclo_web.js"></script>
 <script>
 (() => {
   "use strict";
-  let core=null, ctx=null, master=null, analyser=null;
+  let core=null, ctx=null, master=null, analyser=null, reverbConv=null, reverbSig="";
   const kitBuf={};                 // name -> AudioBuffer of Cyclo's REAL synthesized voice
+  const driveCache={};             // "drive_tone" -> WaveShaper curve (Cyclo's real drive curve)
   let playing=false, timer=null, nextT=0, cyc=0;
   const flashes=[], glow={}, padEls={};
   const $=id=>document.getElementById(id);
@@ -136,7 +139,11 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
   function ensure(){ if(ctx)return;
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     master=ctx.createGain(); master.gain.value=0.9;
-    analyser=ctx.createAnalyser(); analyser.fftSize=1024; master.connect(analyser); analyser.connect(ctx.destination);
+    // master glue: Cyclo's tanh(1.5x) soft-clip (Saturation.h::masterSoftClip), the real ceiling
+    const glue=ctx.createWaveShaper(); glue.curve=makeCurve(x=>Math.tanh(1.5*x)); glue.oversample="2x";
+    analyser=ctx.createAnalyser(); analyser.fftSize=1024;
+    master.connect(glue); glue.connect(analyser); analyser.connect(ctx.destination);
+    buildReverb(-1,-1,-1,-1,-1);                           // default room; rebuilt if the doc overrides character
   }
   // Cyclo's REAL synthesized voice for `name`, from the WASM core, cached as an AudioBuffer.
   // synthKit(name, rate) returns a Float32Array VIEW into WASM heap — copy it out at once.
@@ -147,16 +154,51 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     ab.copyToChannel(Float32Array.from(view), 0);          // copy before the next WASM call
     return (kitBuf[name]=ab);
   }
+  // Build a ConvolverNode from Cyclo's REAL reverb impulse response (ReverbUnit / Freeverb in WASM).
+  // Freeverb is linear, so its IR is the exact reverb — same tail/damp/size/width/predelay as native.
+  function buildReverb(sz,dc,dp,pre,w){
+    const view=core.reverbImpulse(sz,dc,dp,pre,w, 2.2, ctx.sampleRate);   // 2.2s stereo IR
+    const n=view.length/2; const ab=ctx.createBuffer(2,n,ctx.sampleRate);
+    const L=ab.getChannelData(0), R=ab.getChannelData(1);
+    for(let i=0;i<n;i++){ L[i]=view[2*i]; R[i]=view[2*i+1]; }  // copy out of WASM heap at once
+    const conv=ctx.createConvolver(); conv.normalize=false;    // keep the IR's true gain (it IS the send level)
+    conv.buffer=ab; conv.connect(master);
+    reverbConv=conv;
+  }
+  // a WaveShaper transfer table for a pointwise curve f(x), x in [-1,1]
+  function makeCurve(f){ const N=2048, c=new Float32Array(N); for(let i=0;i<N;i++)c[i]=f(i/(N-1)*2-1); return c; }
+  // Cyclo's REAL per-voice drive curve (Saturation.h::voiceDrive), cached per (drive,tone)
+  function driveCurve(drive,tone){
+    const key=drive.toFixed(3)+"_"+tone.toFixed(3); if(driveCache[key])return driveCache[key];
+    const k=1+drive*drive*24, tk=Math.tanh(k), hk=k*2.4, thk=Math.tanh(hk);
+    return (driveCache[key]=makeCurve(x=>{ const soft=Math.tanh(x*k)/tk; return tone<=1e-4?soft:soft+(Math.tanh(x*hk)/thk-soft)*tone; }));
+  }
   function chain(ev){
-    // per-event pan + lpf + gain, from the fields the core computed
-    const pan=ctx.createStereoPanner?ctx.createStereoPanner():null; const g=ctx.createGain(); g.gain.value=ev.gain||1;
-    let head=g, tail=g;
-    if(ev.lpf && ev.lpf<18000){ const f=ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=ev.lpf; tail.connect(f); tail=f; }
-    if(pan){ pan.pan.value=(ev.pan!=null?ev.pan:0.5)*2-1; tail.connect(pan); tail=pan; }
-    tail.connect(master); return head;
+    // gain -> filters -> drive -> [reverb send] -> pan -> master, from the fields the core computed
+    const g=ctx.createGain(); g.gain.value=ev.gain||1;
+    let tail=g;
+    if(ev.hpf && ev.hpf>20){    const f=ctx.createBiquadFilter(); f.type="highpass"; f.frequency.value=ev.hpf; tail.connect(f); tail=f; }
+    if(ev.lpf && ev.lpf<18000){ const f=ctx.createBiquadFilter(); f.type="lowpass";  f.frequency.value=ev.lpf; tail.connect(f); tail=f; }
+    if(ev.bpf && ev.bpf>20){    const f=ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=ev.bpf; f.Q.value=6; tail.connect(f); tail=f; }
+    if(ev.drive && ev.drive>0.001){ const ws=ctx.createWaveShaper(); ws.curve=driveCurve(ev.drive, ev.driveTone||0); ws.oversample="2x"; tail.connect(ws); tail=ws; }
+    // reverb send (mono, pre-pan) into the shared convolver bus -> master
+    if(ev.reverb && ev.reverb>0.001 && reverbConv){ const s=ctx.createGain(); s.gain.value=ev.reverb; tail.connect(s); s.connect(reverbConv); }
+    // pan -> dry master
+    const pan=ctx.createStereoPanner?ctx.createStereoPanner():null;
+    if(pan){ pan.pan.value=(ev.pan!=null?ev.pan:0.5)*2-1; tail.connect(pan); pan.connect(master); } else tail.connect(master);
+    return g;
+  }
+  // rebuild the reverb room if the doc overrides its character (rare; keyed by a signature so we
+  // don't rebuild every cycle). -1 fields keep ReverbUnit's default for that param.
+  function maybeReverbChar(ev){
+    if(!(ev.reverb>0.001)) return;
+    const hasChar = ev.revSize>=0||ev.revDecay>=0||ev.revDamp>=0||ev.revPredelay>=0||ev.revWidth>=0;
+    const sig = hasChar ? [ev.revSize,ev.revDecay,ev.revDamp,ev.revPredelay,ev.revWidth].join(",") : "";
+    if(sig!==reverbSig){ reverbSig=sig; buildReverb(ev.revSize,ev.revDecay,ev.revDamp,ev.revPredelay,ev.revWidth); }
   }
   function voice(ev,t){
     ensure();
+    maybeReverbChar(ev);
     const src=ctx.createBufferSource();
     src.buffer=getBuf(ev.name);                            // the actual Cyclo synthesis (WASM), not a placeholder
     src.playbackRate.value=ev.speed||1;                    // .speed repitches the real sample (as the native VoicePool does)

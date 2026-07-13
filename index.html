@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyclo â€” Spike 0 (the core, in WASM)</title>
+<style>
+  :root{
+    --ink0:#070b0a; --ink1:#0b1310; --ink2:#0f1d18;
+    --line:rgba(94,242,164,.14); --line2:rgba(94,242,164,.28);
+    --phos:#5ef2a4; --phos-dim:#8db9a6; --phos-mute:#4d7d68; --amber:#ffb454;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:radial-gradient(120% 80% at 50% -10%, #0d1a15 0%, var(--ink0) 60%) fixed, var(--ink0);
+    color:var(--phos-dim); font-family:var(--mono); font-size:15px; line-height:1.6; padding:0 20px 60px; -webkit-font-smoothing:antialiased}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.16) 2px 3px);mix-blend-mode:multiply;opacity:.5}
+  .wrap{max-width:900px;margin:0 auto}
+  header{padding:48px 0 26px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--phos-mute)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--phos);box-shadow:0 0 8px var(--phos);margin-right:8px;vertical-align:middle}
+  h1{font-family:var(--sans);font-weight:800;letter-spacing:-.02em;font-size:clamp(30px,5.5vw,50px);color:#eafff4;margin:16px 0 0}
+  h1 .g{color:var(--phos);text-shadow:0 0 24px rgba(94,242,164,.45)}
+  .lede{font-family:var(--sans);font-size:16px;color:var(--phos-dim);max-width:62ch;margin:14px 0 0}
+  .lede b{color:var(--amber);font-weight:600}
+  .machine{margin-top:26px;background:linear-gradient(180deg,var(--ink2),var(--ink1));border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:0 30px 70px -30px #000}
+  .m-top{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.28)}
+  .brand{font-family:var(--sans);font-weight:800;color:#eafff4;font-size:15px}
+  .brand .g{color:var(--phos)}
+  .badge{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--phos-mute);border:1px solid var(--line2);border-radius:999px;padding:4px 10px}
+  .m-grid{display:grid;grid-template-columns:1.1fr 1fr}
+  @media(max-width:720px){.m-grid{grid-template-columns:1fr}}
+  .m-code{padding:16px;border-right:1px solid var(--line)}
+  @media(max-width:720px){.m-code{border-right:none;border-bottom:1px solid var(--line)}}
+  .m-side{padding:16px;display:flex;flex-direction:column;gap:16px}
+  .plabel{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--phos-mute);margin:0 0 8px}
+  textarea{width:100%;height:200px;resize:vertical;background:#050908;color:var(--phos);border:1px solid var(--line2);border-radius:8px;padding:12px 13px;font-family:var(--mono);font-size:13.5px;line-height:1.7;text-shadow:0 0 8px rgba(94,242,164,.35);caret-color:var(--amber)}
+  textarea:focus{outline:2px solid var(--phos);outline-offset:1px}
+  .transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  button.play{font-family:var(--mono);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:#04140d;background:var(--phos);border:none;border-radius:8px;padding:11px 20px;cursor:pointer;box-shadow:0 0 18px rgba(94,242,164,.4)}
+  button.play.on{background:var(--amber);color:#1a0f00}
+  button.play:disabled{background:#2a3a33;color:#6b8a7e;box-shadow:none;cursor:wait}
+  button.play:focus-visible{outline:2px solid #eafff4;outline-offset:2px}
+  .bpm{display:flex;align-items:center;gap:7px;color:var(--phos-mute);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+  .bpm input{width:56px;background:#050908;color:var(--phos);border:1px solid var(--line2);border-radius:6px;padding:7px;font-family:var(--mono);text-align:center}
+  canvas{width:100%;height:74px;display:block;background:#050908;border:1px solid var(--line2);border-radius:8px}
+  .pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .pad{aspect-ratio:1.5/1;border-radius:8px;background:#0a1712;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:12px;text-transform:uppercase;color:var(--phos-mute);position:relative;overflow:hidden}
+  .pad .glow{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,var(--phos),transparent 70%);opacity:0}
+  .status{font-size:12.5px;color:var(--phos-mute);padding:12px 18px;border-top:1px solid var(--line);background:rgba(0,0,0,.28)}
+  .status .live{color:var(--phos)} .status .err{color:var(--amber)}
+  .note{font-family:var(--sans);font-size:13px;color:var(--phos-mute);margin:16px 2px 0;max-width:70ch}
+  .note b{color:var(--phos-dim)}
+  code{color:var(--phos)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><span class="dot"></span>Cyclo Â· Spike 0 Â· the brain in a browser</div>
+    <h1>The real core, compiled to <span class="g">WebAssembly</span>.</h1>
+    <p class="lede">Every event below is scheduled by <b>src/core</b> â€” Cyclo's actual C++ parser and
+      Tidal-style pattern engine â€” compiled to WASM and running in this page, <b>unchanged</b>. The
+      browser only synthesizes simple voices for the events the core hands it. Edit the code; it
+      re-compiles live.</p>
+  </header>
+
+  <div class="machine">
+    <div class="m-top">
+      <span class="brand">cyclo<span class="g">/web</span></span>
+      <span class="badge" id="wasmbadge">loading wasm&hellip;</span>
+    </div>
+    <div class="m-grid">
+      <div class="m-code">
+        <p class="plabel">the document â€” compiled by the WASM core, per cycle</p>
+        <textarea id="code" spellcheck="false">bpm = 120
+
+## DRUMS
+s("bd - sn -, hh*4")
+
+## PERC
+s("- cp - -, oh*2")
+
+## BLEEP
+s("bd(3,8)").speed(2).gain(0.5)</textarea>
+      </div>
+      <div class="m-side">
+        <div class="transport">
+          <button class="play" id="play" disabled>â–¶ Play</button>
+          <span class="bpm">BPM <input id="bpm" type="number" min="60" max="200" value="120"></span>
+        </div>
+        <div><p class="plabel">master out</p><canvas id="scope" width="600" height="150"></canvas></div>
+        <div><p class="plabel">pads â€” lit by the scheduled events</p><div class="pads" id="pads"></div></div>
+      </div>
+    </div>
+    <div class="status" id="status">â–  stopped</div>
+  </div>
+  <p class="note"><b>What's real here:</b> the mini-notation parsing, euclid <code>bd(3,8)</code>,
+    alternation, stacks, <code>.speed/.gain/.lpf</code> â€” all computed by the same C++ that runs the
+    native app, now in WASM. <b>What's a placeholder:</b> the drum voices (the engine's real DSP
+    becomes an AudioWorklet in Spike 1). Same brain, simple temporary skin.</p>
+</div>
+
+<script src="cyclo_web.js"></script>
+<script>
+(() => {
+  "use strict";
+  let core=null, ctx=null, master=null, analyser=null, noiseBuf=null;
+  let playing=false, timer=null, nextT=0, cyc=0;
+  const flashes=[], glow={}, padEls={};
+  const $=id=>document.getElementById(id);
+  const codeEl=$("code"), statusEl=$("status"), padsEl=$("pads"), playBtn=$("play"), bpmEl=$("bpm");
+
+  // ---- load the WASM core ----
+  CycloCore().then(m=>{ core=m; playBtn.disabled=false; $("wasmbadge").textContent="wasm core ready";
+    $("wasmbadge").style.color="var(--phos)"; refreshPads(); });
+
+  // ---- split the document into (name, chain) sections + bpm; the pattern semantics live in WASM ----
+  function sections(){
+    const out=[]; let cur=null; let bpm=120;
+    for(const raw of codeEl.value.split("\n")){
+      const line=raw.trim();
+      const bm=line.match(/^bpm\s*=\s*(\d+(?:\.\d+)?)/); if(bm){ bpm=+bm[1]; continue; }
+      if(line.startsWith("##")){ cur={name:line.slice(2).trim()||"?", chain:null}; out.push(cur); continue; }
+      if(cur && !cur.chain && /s\(\s*"/.test(line)) cur.chain=line;
+    }
+    return {tracks:out.filter(t=>t.chain), bpm};
+  }
+
+  // ---- audio ----
+  function ensure(){ if(ctx)return;
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain(); master.gain.value=0.9;
+    analyser=ctx.createAnalyser(); analyser.fftSize=1024; master.connect(analyser); analyser.connect(ctx.destination);
+    const n=ctx.sampleRate; noiseBuf=ctx.createBuffer(1,n,ctx.sampleRate); const d=noiseBuf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  }
+  function noise(){ const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true; return s; }
+  function env(g,t,a,d,p){ g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+a); g.gain.exponentialRampToValueAtTime(0.0007,t+a+d); g.gain.setValueAtTime(0,t+a+d+0.004); }
+  function chain(ev){
+    // per-event pan + lpf + gain, from the fields the core computed
+    const pan=ctx.createStereoPanner?ctx.createStereoPanner():null; const g=ctx.createGain(); g.gain.value=ev.gain||1;
+    let head=g, tail=g;
+    if(ev.lpf && ev.lpf<18000){ const f=ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=ev.lpf; tail.connect(f); tail=f; }
+    if(pan){ pan.pan.value=(ev.pan!=null?ev.pan:0.5)*2-1; tail.connect(pan); tail=pan; }
+    tail.connect(master); return head;
+  }
+  function voice(ev,t){
+    ensure(); const out=chain(ev); const sp=ev.speed||1; const g=ctx.createGain(); g.connect(out); const nm=ev.name;
+    if(nm==="bd"||nm==="kick"){ const o=ctx.createOscillator(); o.type="sine"; o.frequency.setValueAtTime(150*sp,t); o.frequency.exponentialRampToValueAtTime(48*sp,t+0.11); o.connect(g); env(g,t,0.003,0.18,0.95); o.start(t); o.stop(t+0.24); }
+    else if(nm==="sn"||nm==="sd"||nm==="snare"){ const nz=noise(); const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1800; nz.connect(bp); bp.connect(g); env(g,t,0.002,0.14,0.7); nz.start(t); nz.stop(t+0.17); }
+    else if(nm==="hh"||nm==="ch"){ const nz=noise(); const hp=ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=7200; nz.connect(hp); hp.connect(g); env(g,t,0.001,0.035,0.4); nz.start(t); nz.stop(t+0.06); }
+    else if(nm==="oh"){ const nz=noise(); const hp=ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=6200; nz.connect(hp); hp.connect(g); env(g,t,0.001,0.28,0.34); nz.start(t); nz.stop(t+0.34); }
+    else if(nm==="cp"||nm==="clap"){ const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1200; bp.connect(g); env(g,t,0.002,0.14,0.6); for(let k=0;k<3;k++){ const nz=noise(); const gg=ctx.createGain(); nz.connect(gg); gg.connect(bp); const tt=t+k*0.011; gg.gain.setValueAtTime(0,tt); gg.gain.linearRampToValueAtTime(0.9,tt+0.001); gg.gain.exponentialRampToValueAtTime(0.001,tt+0.03); nz.start(tt); nz.stop(tt+0.05);} }
+    else { const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.value=300*sp; const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1600; o.connect(lp); lp.connect(g); env(g,t,0.004,0.2,0.34); o.start(t); o.stop(t+0.28); }
+    flashes.push({s:nm,t});
+  }
+
+  // ---- lookahead scheduler; each cycle's events come from the WASM core ----
+  function cycleDur(){ return (60/(+bpmEl.value||120))*4; }
+  function scheduleCycle(when){
+    const {tracks}=sections(); let layers=0, err=null;
+    for(const tr of tracks){
+      let res; try{ res=JSON.parse(core.scheduleCycle(tr.chain, cyc)); }catch(e){ continue; }
+      if(res.error){ err=tr.name+": "+res.error; continue; }
+      if(res.events.length)layers++;
+      for(const ev of res.events) voice(ev, when+ev.t*cycleDur());
+    }
+    return {layers,err};
+  }
+  function tick(){
+    while(nextT < ctx.currentTime + 0.12){
+      const {layers,err}=scheduleCycle(nextT);
+      statusEl.innerHTML = err ? '<span class="err">! '+err+'</span>'
+        : '<span class="live">â–¶ playing '+layers+' layer'+(layers===1?'':'s')+'</span> Â· cycle '+cyc+' Â· scheduled by WASM core';
+      nextT+=cycleDur(); cyc++;
+    }
+  }
+  function start(){ if(!core)return; ensure(); if(ctx.state==="suspended")ctx.resume();
+    playing=true; playBtn.classList.add("on"); playBtn.textContent="â–  Stop"; nextT=ctx.currentTime+0.06; cyc=0; timer=setInterval(tick,25); tick(); }
+  function stop(){ playing=false; clearInterval(timer); playBtn.classList.remove("on"); playBtn.textContent="â–¶ Play"; statusEl.textContent="â–  stopped"; }
+  playBtn.addEventListener("click",()=>playing?stop():start());
+
+  // ---- pads + scope ----
+  function refreshPads(){
+    if(!core)return; const names=[]; const {tracks}=sections();
+    for(const tr of tracks){ let r; try{ r=JSON.parse(core.scheduleCycle(tr.chain,0)); }catch(e){ continue; } if(r.events)for(const e of r.events)if(!names.includes(e.name))names.push(e.name); }
+    padsEl.innerHTML=""; for(const k in padEls)delete padEls[k];
+    names.slice(0,8).forEach(nm=>{ const el=document.createElement("div"); el.className="pad"; el.innerHTML='<span class="glow"></span><span>'+nm+'</span>'; padsEl.appendChild(el); padEls[nm]=el; glow[nm]=0; });
+  }
+  codeEl.addEventListener("input",refreshPads);
+  const scope=$("scope"), sc=scope.getContext("2d"); let buf=null;
+  function draw(){
+    if(ctx){ const now=ctx.currentTime; for(let i=flashes.length-1;i>=0;i--)if(flashes[i].t<=now){ if(flashes[i].s in glow)glow[flashes[i].s]=1; flashes.splice(i,1);} }
+    for(const nm in padEls){ glow[nm]=Math.max(0,(glow[nm]||0)-0.06); padEls[nm].querySelector(".glow").style.opacity=glow[nm]*0.9; padEls[nm].style.color=glow[nm]>0.15?"#eafff4":""; }
+    sc.clearRect(0,0,scope.width,scope.height); sc.strokeStyle="rgba(94,242,164,.12)"; sc.beginPath(); sc.moveTo(0,scope.height/2); sc.lineTo(scope.width,scope.height/2); sc.stroke();
+    if(analyser&&playing){ if(!buf)buf=new Uint8Array(analyser.frequencyBinCount); analyser.getByteTimeDomainData(buf); sc.strokeStyle="#5ef2a4"; sc.lineWidth=2; sc.shadowColor="#5ef2a4"; sc.shadowBlur=8; sc.beginPath(); const st=scope.width/buf.length; for(let i=0;i<buf.length;i++){ const y=(buf[i]/255)*scope.height; const x=i*st; i?sc.lineTo(x,y):sc.moveTo(x,y); } sc.stroke(); sc.shadowBlur=0; }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+Copyright (c) 2026 tomhb. All rights reserved.
+
+This repository contains the COMPILED web build of Cyclo (a WebAssembly module and
+a demo harness page), published for hosting and demonstration purposes only.
+
+No license is granted to use, copy, modify, or redistribute this software or any
+derivative of it, except for the viewing and forking permitted to GitHub users by
+GitHub's Terms of Service. All other rights are reserved.
+
+The Cyclo source code is not included in this repository.
+
+Third-party components embedded in the compiled artifact (the Emscripten runtime and
+musl libc) are credited in NOTICE.md and remain under their own permissive licenses.

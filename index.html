@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cyclo â€” Spike 0 (the core, in WASM)</title>
+<title>Cyclo — Spike 0 (the core, in WASM)</title>
 <style>
   :root{
     --ink0:#070b0a; --ink1:#0b1310; --ink2:#0f1d18;
@@ -59,10 +59,10 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow"><span class="dot"></span>Cyclo Â· Spike 0 Â· the brain in a browser</div>
+    <div class="eyebrow"><span class="dot"></span>Cyclo · Spike 0 · the brain in a browser</div>
     <h1>The real core, compiled to <span class="g">WebAssembly</span>.</h1>
-    <p class="lede">Every event below is scheduled by <b>src/core</b> â€” Cyclo's actual C++ parser and
-      Tidal-style pattern engine â€” compiled to WASM and running in this page, <b>unchanged</b>. And now
+    <p class="lede">Every event below is scheduled by <b>src/core</b> — Cyclo's actual C++ parser and
+      Tidal-style pattern engine — compiled to WASM and running in this page, <b>unchanged</b>. And now
       every sound is Cyclo's <b>real synthesized kit</b> (<b>src/engine/SynthKit</b>), the same 808 +
       guitar/bass voices as the native app, also compiled to WASM. Edit the code; it re-compiles live.</p>
   </header>
@@ -74,7 +74,7 @@
     </div>
     <div class="m-grid">
       <div class="m-code">
-        <p class="plabel">the document â€” compiled by the WASM core, per cycle</p>
+        <p class="plabel">the document — compiled by the WASM core, per cycle</p>
         <textarea id="code" spellcheck="false">bpm = 120
 
 ## DRUMS
@@ -88,20 +88,20 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
       </div>
       <div class="m-side">
         <div class="transport">
-          <button class="play" id="play" disabled>â–¶ Play</button>
+          <button class="play" id="play" disabled>▶ Play</button>
           <span class="bpm">BPM <input id="bpm" type="number" min="60" max="200" value="120"></span>
         </div>
         <div><p class="plabel">master out</p><canvas id="scope" width="600" height="150"></canvas></div>
-        <div><p class="plabel">pads â€” lit by the scheduled events</p><div class="pads" id="pads"></div></div>
+        <div><p class="plabel">pads — lit by the scheduled events</p><div class="pads" id="pads"></div></div>
       </div>
     </div>
-    <div class="status" id="status">â–  stopped</div>
+    <div class="status" id="status">■ stopped</div>
   </div>
   <p class="note"><b>What's real here:</b> the mini-notation parsing, euclid <code>bd(3,8)</code>,
-    alternation, stacks, <code>.speed/.gain/.lpf</code>, <b>and the voices themselves</b> â€” the exact
+    alternation, stacks, <code>.speed/.gain/.lpf</code>, <b>and the voices themselves</b> — the exact
     <code>synthesizeKitSample</code> synthesis (bit-identical, seeded RNG and all), all the same C++
     that runs the native app, now in WASM. <b>What's still simplified:</b> the effects + master chain
-    (reverb / delay / drive / crush) use light Web-Audio stand-ins â€” the engine's real DSP moves into an
+    (reverb / delay / drive / crush) use light Web-Audio stand-ins — the engine's real DSP moves into an
     AudioWorklet next. Same brain, same voices.</p>
 </div>
 
@@ -139,7 +139,7 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     analyser=ctx.createAnalyser(); analyser.fftSize=1024; master.connect(analyser); analyser.connect(ctx.destination);
   }
   // Cyclo's REAL synthesized voice for `name`, from the WASM core, cached as an AudioBuffer.
-  // synthKit(name, rate) returns a Float32Array VIEW into WASM heap â€” copy it out at once.
+  // synthKit(name, rate) returns a Float32Array VIEW into WASM heap — copy it out at once.
   function getBuf(name){
     if(kitBuf[name]) return kitBuf[name];
     const view=core.synthKit(name, ctx.sampleRate);
@@ -181,13 +181,13 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     while(nextT < ctx.currentTime + 0.12){
       const {layers,err}=scheduleCycle(nextT);
       statusEl.innerHTML = err ? '<span class="err">! '+err+'</span>'
-        : '<span class="live">â–¶ playing '+layers+' layer'+(layers===1?'':'s')+'</span> Â· cycle '+cyc+' Â· scheduled by WASM core';
+        : '<span class="live">▶ playing '+layers+' layer'+(layers===1?'':'s')+'</span> · cycle '+cyc+' · scheduled by WASM core';
       nextT+=cycleDur(); cyc++;
     }
   }
   function start(){ if(!core)return; ensure(); if(ctx.state==="suspended")ctx.resume();
-    playing=true; playBtn.classList.add("on"); playBtn.textContent="â–  Stop"; nextT=ctx.currentTime+0.06; cyc=0; timer=setInterval(tick,25); tick(); }
-  function stop(){ playing=false; clearInterval(timer); playBtn.classList.remove("on"); playBtn.textContent="â–¶ Play"; statusEl.textContent="â–  stopped"; }
+    playing=true; playBtn.classList.add("on"); playBtn.textContent="■ Stop"; nextT=ctx.currentTime+0.06; cyc=0; timer=setInterval(tick,25); tick(); }
+  function stop(){ playing=false; clearInterval(timer); playBtn.classList.remove("on"); playBtn.textContent="▶ Play"; statusEl.textContent="■ stopped"; }
   playBtn.addEventListener("click",()=>playing?stop():start());
 
   // ---- pads + scope ----

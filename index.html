@@ -62,9 +62,9 @@
     <div class="eyebrow"><span class="dot"></span>Cyclo Â· Spike 0 Â· the brain in a browser</div>
     <h1>The real core, compiled to <span class="g">WebAssembly</span>.</h1>
     <p class="lede">Every event below is scheduled by <b>src/core</b> â€” Cyclo's actual C++ parser and
-      Tidal-style pattern engine â€” compiled to WASM and running in this page, <b>unchanged</b>. The
-      browser only synthesizes simple voices for the events the core hands it. Edit the code; it
-      re-compiles live.</p>
+      Tidal-style pattern engine â€” compiled to WASM and running in this page, <b>unchanged</b>. And now
+      every sound is Cyclo's <b>real synthesized kit</b> (<b>src/engine/SynthKit</b>), the same 808 +
+      guitar/bass voices as the native app, also compiled to WASM. Edit the code; it re-compiles live.</p>
   </header>
 
   <div class="machine">
@@ -98,16 +98,19 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     <div class="status" id="status">â–  stopped</div>
   </div>
   <p class="note"><b>What's real here:</b> the mini-notation parsing, euclid <code>bd(3,8)</code>,
-    alternation, stacks, <code>.speed/.gain/.lpf</code> â€” all computed by the same C++ that runs the
-    native app, now in WASM. <b>What's a placeholder:</b> the drum voices (the engine's real DSP
-    becomes an AudioWorklet in Spike 1). Same brain, simple temporary skin.</p>
+    alternation, stacks, <code>.speed/.gain/.lpf</code>, <b>and the voices themselves</b> â€” the exact
+    <code>synthesizeKitSample</code> synthesis (bit-identical, seeded RNG and all), all the same C++
+    that runs the native app, now in WASM. <b>What's still simplified:</b> the effects + master chain
+    (reverb / delay / drive / crush) use light Web-Audio stand-ins â€” the engine's real DSP moves into an
+    AudioWorklet next. Same brain, same voices.</p>
 </div>
 
 <script src="cyclo_web.js"></script>
 <script>
 (() => {
   "use strict";
-  let core=null, ctx=null, master=null, analyser=null, noiseBuf=null;
+  let core=null, ctx=null, master=null, analyser=null;
+  const kitBuf={};                 // name -> AudioBuffer of Cyclo's REAL synthesized voice
   let playing=false, timer=null, nextT=0, cyc=0;
   const flashes=[], glow={}, padEls={};
   const $=id=>document.getElementById(id);
@@ -134,11 +137,16 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     master=ctx.createGain(); master.gain.value=0.9;
     analyser=ctx.createAnalyser(); analyser.fftSize=1024; master.connect(analyser); analyser.connect(ctx.destination);
-    const n=ctx.sampleRate; noiseBuf=ctx.createBuffer(1,n,ctx.sampleRate); const d=noiseBuf.getChannelData(0);
-    for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
   }
-  function noise(){ const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true; return s; }
-  function env(g,t,a,d,p){ g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+a); g.gain.exponentialRampToValueAtTime(0.0007,t+a+d); g.gain.setValueAtTime(0,t+a+d+0.004); }
+  // Cyclo's REAL synthesized voice for `name`, from the WASM core, cached as an AudioBuffer.
+  // synthKit(name, rate) returns a Float32Array VIEW into WASM heap â€” copy it out at once.
+  function getBuf(name){
+    if(kitBuf[name]) return kitBuf[name];
+    const view=core.synthKit(name, ctx.sampleRate);
+    const ab=ctx.createBuffer(1, view.length, ctx.sampleRate);
+    ab.copyToChannel(Float32Array.from(view), 0);          // copy before the next WASM call
+    return (kitBuf[name]=ab);
+  }
   function chain(ev){
     // per-event pan + lpf + gain, from the fields the core computed
     const pan=ctx.createStereoPanner?ctx.createStereoPanner():null; const g=ctx.createGain(); g.gain.value=ev.gain||1;
@@ -148,14 +156,13 @@ s("bd(3,8)").speed(2).gain(0.5)</textarea>
     tail.connect(master); return head;
   }
   function voice(ev,t){
-    ensure(); const out=chain(ev); const sp=ev.speed||1; const g=ctx.createGain(); g.connect(out); const nm=ev.name;
-    if(nm==="bd"||nm==="kick"){ const o=ctx.createOscillator(); o.type="sine"; o.frequency.setValueAtTime(150*sp,t); o.frequency.exponentialRampToValueAtTime(48*sp,t+0.11); o.connect(g); env(g,t,0.003,0.18,0.95); o.start(t); o.stop(t+0.24); }
-    else if(nm==="sn"||nm==="sd"||nm==="snare"){ const nz=noise(); const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1800; nz.connect(bp); bp.connect(g); env(g,t,0.002,0.14,0.7); nz.start(t); nz.stop(t+0.17); }
-    else if(nm==="hh"||nm==="ch"){ const nz=noise(); const hp=ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=7200; nz.connect(hp); hp.connect(g); env(g,t,0.001,0.035,0.4); nz.start(t); nz.stop(t+0.06); }
-    else if(nm==="oh"){ const nz=noise(); const hp=ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=6200; nz.connect(hp); hp.connect(g); env(g,t,0.001,0.28,0.34); nz.start(t); nz.stop(t+0.34); }
-    else if(nm==="cp"||nm==="clap"){ const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1200; bp.connect(g); env(g,t,0.002,0.14,0.6); for(let k=0;k<3;k++){ const nz=noise(); const gg=ctx.createGain(); nz.connect(gg); gg.connect(bp); const tt=t+k*0.011; gg.gain.setValueAtTime(0,tt); gg.gain.linearRampToValueAtTime(0.9,tt+0.001); gg.gain.exponentialRampToValueAtTime(0.001,tt+0.03); nz.start(tt); nz.stop(tt+0.05);} }
-    else { const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.value=300*sp; const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1600; o.connect(lp); lp.connect(g); env(g,t,0.004,0.2,0.34); o.start(t); o.stop(t+0.28); }
-    flashes.push({s:nm,t});
+    ensure();
+    const src=ctx.createBufferSource();
+    src.buffer=getBuf(ev.name);                            // the actual Cyclo synthesis (WASM), not a placeholder
+    src.playbackRate.value=ev.speed||1;                    // .speed repitches the real sample (as the native VoicePool does)
+    src.connect(chain(ev));
+    src.start(t);
+    flashes.push({s:ev.name,t});
   }
 
   // ---- lookahead scheduler; each cycle's events come from the WASM core ----

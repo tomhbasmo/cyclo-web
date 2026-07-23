@@ -1146,6 +1146,8 @@ button.share:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
 .subtab:not(.on):hover { color:var(--ink); }
 .subtab:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 .mpane.hidden { display:none; }
+/* COMPOSE sub-surface panes (ARRANGE / MIX / AUTOMATE), same show/hide pattern as PLAY's .mpane */
+.cpane.hidden { display:none; }
 
 /* the recessed dark screen the instrument sits in (native's paintRecessedScreen) */
 .melodic { border-radius:16px; padding:14px 14px 12px;

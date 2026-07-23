@@ -2,254 +2,396 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cyclo — Spike 1 (the engine, in WASM)</title>
-<style>
-  :root{
-    --ink0:#070b0a; --ink1:#0b1310; --ink2:#0f1d18;
-    --line:rgba(94,242,164,.14); --line2:rgba(94,242,164,.28);
-    --phos:#5ef2a4; --phos-dim:#8db9a6; --phos-mute:#4d7d68; --amber:#ffb454;
-    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
-    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  }
-  *{box-sizing:border-box} html,body{margin:0}
-  body{background:radial-gradient(120% 80% at 50% -10%, #0d1a15 0%, var(--ink0) 60%) fixed, var(--ink0);
-    color:var(--phos-dim); font-family:var(--mono); font-size:15px; line-height:1.6; padding:0 20px 60px; -webkit-font-smoothing:antialiased}
-  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
-    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.16) 2px 3px);mix-blend-mode:multiply;opacity:.5}
-  .wrap{max-width:900px;margin:0 auto}
-  header{padding:48px 0 26px;border-bottom:1px solid var(--line)}
-  .eyebrow{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--phos-mute)}
-  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--phos);box-shadow:0 0 8px var(--phos);margin-right:8px;vertical-align:middle}
-  h1{font-family:var(--sans);font-weight:800;letter-spacing:-.02em;font-size:clamp(30px,5.5vw,50px);color:#eafff4;margin:16px 0 0}
-  h1 .g{color:var(--phos);text-shadow:0 0 24px rgba(94,242,164,.45)}
-  .lede{font-family:var(--sans);font-size:16px;color:var(--phos-dim);max-width:62ch;margin:14px 0 0}
-  .lede b{color:var(--amber);font-weight:600}
-  .machine{margin-top:26px;background:linear-gradient(180deg,var(--ink2),var(--ink1));border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:0 30px 70px -30px #000}
-  .m-top{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.28)}
-  .brand{font-family:var(--sans);font-weight:800;color:#eafff4;font-size:15px}
-  .brand .g{color:var(--phos)}
-  .badge{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--phos-mute);border:1px solid var(--line2);border-radius:999px;padding:4px 10px}
-  .m-grid{display:grid;grid-template-columns:1.1fr 1fr}
-  @media(max-width:720px){.m-grid{grid-template-columns:1fr}}
-  .m-code{padding:16px;border-right:1px solid var(--line)}
-  @media(max-width:720px){.m-code{border-right:none;border-bottom:1px solid var(--line)}}
-  .m-side{padding:16px;display:flex;flex-direction:column;gap:16px}
-  .plabel{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--phos-mute);margin:0 0 8px}
-  textarea{width:100%;height:200px;resize:vertical;background:#050908;color:var(--phos);border:1px solid var(--line2);border-radius:8px;padding:12px 13px;font-family:var(--mono);font-size:13.5px;line-height:1.7;text-shadow:0 0 8px rgba(94,242,164,.35);caret-color:var(--amber)}
-  textarea:focus{outline:2px solid var(--phos);outline-offset:1px}
-  .transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  button.play{font-family:var(--mono);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:#04140d;background:var(--phos);border:none;border-radius:8px;padding:11px 20px;cursor:pointer;box-shadow:0 0 18px rgba(94,242,164,.4)}
-  button.play.on{background:var(--amber);color:#1a0f00}
-  button.play:disabled{background:#2a3a33;color:#6b8a7e;box-shadow:none;cursor:wait}
-  button.play:focus-visible{outline:2px solid #eafff4;outline-offset:2px}
-  .bpm{display:flex;align-items:center;gap:7px;color:var(--phos-mute);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
-  .bpm input{width:56px;background:#050908;color:var(--phos);border:1px solid var(--line2);border-radius:6px;padding:7px;font-family:var(--mono);text-align:center}
-  canvas{width:100%;height:74px;display:block;background:#050908;border:1px solid var(--line2);border-radius:8px}
-  .pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .pad{aspect-ratio:1.5/1;border-radius:8px;background:#0a1712;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:12px;text-transform:uppercase;color:var(--phos-mute);position:relative;overflow:hidden}
-  .pad .glow{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,var(--phos),transparent 70%);opacity:0}
-  .status{font-size:12.5px;color:var(--phos-mute);padding:12px 18px;border-top:1px solid var(--line);background:rgba(0,0,0,.28)}
-  .status .live{color:var(--phos)} .status .err{color:var(--amber)}
-  .note{font-family:var(--sans);font-size:13px;color:var(--phos-mute);margin:16px 2px 0;max-width:70ch}
-  .note b{color:var(--phos-dim)}
-  code{color:var(--phos)}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cyclo — web</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='11' fill='none' stroke='%232fa363' stroke-width='4'/></svg>">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="eyebrow"><span class="dot"></span>Cyclo · Spike 1 · the brain, the voices &amp; the room</div>
-    <h1>The real engine, compiled to <span class="g">WebAssembly</span>.</h1>
-    <p class="lede">Every event below is scheduled by <b>src/core</b> — Cyclo's actual C++ parser and
-      Tidal-style pattern engine — compiled to WASM and running in this page, <b>unchanged</b>. Every sound
-      is Cyclo's <b>real synthesized kit</b> (<b>SynthKit</b>), and the space is Cyclo's <b>real reverb</b>
-      (<b>ReverbUnit</b>'s Freeverb, rendered to an impulse response) — the same voices and room as the
-      native app, in WASM. Edit the code; it re-compiles live.</p>
-  </header>
-
-  <div class="machine">
-    <div class="m-top">
-      <span class="brand">cyclo<span class="g">/web</span></span>
-      <span class="badge" id="wasmbadge">loading wasm&hellip;</span>
-    </div>
-    <div class="m-grid">
-      <div class="m-code">
-        <p class="plabel">the document — compiled by the WASM core, per cycle</p>
-        <textarea id="code" spellcheck="false">bpm = 120
-
-## DRUMS
-s("bd - sn -, hh*4")
-
-## PERC
-s("- cp - -, oh*2").reverb(0.4)
-
-## BLEEP
-s("bd(3,8)").speed(2).gain(0.5).drive(0.5)</textarea>
+  <div class="app">
+    <header class="topbar">
+      <div class="wordmark">cyclo<span class="grain">●</span></div>
+      <div class="lights">
+        <span class="dot rec" title="record"></span>
+        <span id="playDot" class="dot play" title="transport"></span>
       </div>
-      <div class="m-side">
-        <div class="transport">
-          <button class="play" id="play" disabled>▶ Play</button>
-          <span class="bpm">BPM <input id="bpm" type="number" min="60" max="200" value="120"></span>
+      <div class="bpmwrap">
+        <label for="bpm">BPM</label>
+        <input id="bpm" type="number" value="124" min="40" max="220" step="1">
+      </div>
+      <div class="spacer"></div>
+      <!-- MAKER SCORE HUD (Gamification L3): a flat recessed-LCD chip — running score in phosphor,
+           an amber xN.N badge as the code-edit multiplier climbs, a "+N" pop on each earn. Tap = scoreboard. -->
+      <button id="scoreHud" class="score-hud" type="button" title="your Maker Score — tap for the scoreboard" aria-label="Maker Score, open scoreboard">
+        <span class="sh-cap">SCORE</span>
+        <span id="shValue" class="sh-value">0</span>
+        <span id="shMult" class="sh-mult"></span>
+        <span id="shPop" class="sh-pop" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <main class="machine">
+      <!-- opened-from-a-link banner: appears when the URL carries a shared song (#s=...).
+           Mobile browsers block autoplay before a tap, so we offer a prominent one-tap Play. -->
+      <div id="sharedBanner" class="shared-banner hidden" role="region" aria-label="shared song">
+        <span class="shared-note">a song was shared with you</span>
+        <button id="sharedPlayBtn" class="shared-play" type="button">&#9654; Play this</button>
+        <button id="sharedDismiss" class="shared-dismiss" type="button" aria-label="dismiss">&times;</button>
+      </div>
+
+      <!-- view switch: PLAY (pads) | CODE (editor) | COMPOSE (arrangement timeline) — native's PLAY | CODE | COMPOSE pager -->
+      <nav class="tabs" role="tablist" aria-label="views">
+        <button id="tabPlay" class="tab on" data-view="play" role="tab" aria-selected="true">PLAY</button>
+        <button id="tabCode" class="tab"    data-view="code" role="tab" aria-selected="false">CODE</button>
+        <button id="tabCompose" class="tab" data-view="compose" role="tab" aria-selected="false">COMPOSE</button>
+      </nav>
+
+      <!-- PLAY face: PADS (grey colour-is-light grid) | KEYS (scale strip) | CHORDS (diatonic ribbon),
+           mirroring native's PLAY surface segmentation (BEAT | KEYS | CHORDS). KEYS + CHORDS are
+           built by src/melodic.js and write the ## KEYS / ## CHORDS coin. -->
+      <section id="playFace" class="face">
+        <nav class="subtabs" role="tablist" aria-label="play surfaces">
+          <button id="subPads"   class="subtab on" type="button" role="tab" aria-selected="true">PADS</button>
+          <button id="subKeys"   class="subtab"    type="button" role="tab" aria-selected="false">KEYS</button>
+          <button id="subChords" class="subtab"    type="button" role="tab" aria-selected="false">CHORDS</button>
+          <button id="subStep"   class="subtab"    type="button" role="tab" aria-selected="false">STEP</button>
+        </nav>
+        <div id="padsPane" class="mpane">
+          <div id="padgrid" class="padgrid" aria-label="pad grid"></div>
+          <div class="playhint">tap a pad — it plays right now · drop an audio file to add your own</div>
+          <!-- THE COIN, surfaced from PADS (P2/B2): the default surface writes no code, so this quiet,
+               dismissible affordance connects the beat to the code it IS. Tap = jump to CODE (the coin);
+               × dismisses it for good (persisted, never nags). Not a tutorial — one line + one tap. -->
+          <div id="coinHint" class="coin-hint">
+            <button id="coinHintBtn" class="coin-hint-see" type="button" aria-label="see this beat as code">
+              <span class="coin-hint-dot" aria-hidden="true">&lt;/&gt;</span>
+              <span class="coin-hint-text">your beat is code</span>
+              <span class="coin-hint-go" aria-hidden="true">see it &rsaquo;</span>
+            </button>
+            <button id="coinHintX" class="coin-hint-x" type="button" aria-label="dismiss">&times;</button>
+          </div>
         </div>
-        <div><p class="plabel">master out</p><canvas id="scope" width="600" height="150"></canvas></div>
-        <div><p class="plabel">pads — lit by the scheduled events</p><div class="pads" id="pads"></div></div>
+        <div id="keysPane"   class="mpane hidden" aria-label="keys surface"></div>
+        <div id="chordsPane" class="mpane hidden" aria-label="chords surface"></div>
+        <div id="stepPane"   class="mpane hidden" aria-label="step grid surface"></div>
+      </section>
+
+      <!-- hidden file input for the Import path (wav/mp3/…); opened by the ADD sheet -->
+      <input id="fileInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" style="display:none">
+
+      <!-- ADD-A-SOUND sheet (native AddSoundSheet: ONE front door -> Record | Import) -->
+      <div id="addSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="add a sound">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Add a sound</div>
+            <button id="addClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sheet-sub">Record it now, or bring in a file.</div>
+          <button id="addRecBtn" class="sheet-key" type="button"><span class="sheet-glyph">●</span> Record with the mic</button>
+          <button id="addFileBtn" class="sheet-key" type="button"><span class="sheet-glyph">▤</span> Import from a file</button>
+          <!-- the SOUND PICKER / BANK BROWSER (native SoundPicker + BankBrowser): every sound grouped
+               (kit / this song / persistent library), tap to audition, KEEP across projects -->
+          <button id="addBrowseBtn" class="sheet-key" type="button"><span class="sheet-glyph">◈</span> Browse sounds &amp; library</button>
+        </div>
       </div>
-    </div>
-    <div class="status" id="status">■ stopped</div>
+
+      <!-- RECORD sheet: mic permission + record/stop + a live level meter (the "on the bus" surface) -->
+      <div id="recSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="record a sound">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Record a sound</div>
+            <button id="recClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div id="recStatus" class="sheet-sub">tap the dot to start — your browser will ask for the mic</div>
+          <div class="rec-stage">
+            <button id="recDot" class="rec-dot" type="button" aria-label="record / stop"><span class="rec-dot-core"></span></button>
+            <div class="rec-level" aria-hidden="true"><div id="recLevelBar" class="rec-level-bar"></div></div>
+            <div id="recTime" class="rec-time">0.0s</div>
+          </div>
+          <button id="recCancel" class="sheet-cancel" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <!-- HUM sheet: hum/sing a tune into the mic -> the SHARED pitch tracker (PitchTrack YIN) ->
+           a `## KEYS` melody (native HumMelody). Same getUserMedia + level-meter plumbing as Record,
+           then a PREVIEW of the detected notes before committing. -->
+      <div id="humSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="hum a melody">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Hum a tune</div>
+            <button id="humClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div id="humStatus" class="sheet-sub">tap the dot and hum or whistle a melody — we turn it into playable notes</div>
+          <div class="rec-stage">
+            <button id="humDot" class="rec-dot" type="button" aria-label="hum / stop"><span class="rec-dot-core"></span></button>
+            <div class="rec-level" aria-hidden="true"><div id="humLevelBar" class="rec-level-bar"></div></div>
+            <div id="humTime" class="rec-time">0.0s</div>
+          </div>
+          <!-- PREVIEW: the detected notes, shown before they land as code (native HumMelody intent) -->
+          <div id="humPreview" class="hum-preview hidden" aria-label="detected melody preview">
+            <div class="hum-preview-cap">DETECTED MELODY</div>
+            <canvas id="humContour" class="hum-contour" width="520" height="90" aria-hidden="true"></canvas>
+            <div id="humNotes" class="hum-notes"></div>
+            <div class="sheet-actions">
+              <button id="humRetry" class="sheet-cancel" type="button">Try again</button>
+              <button id="humHear" class="sheet-cancel" type="button">&#9654; Hear it</button>
+              <button id="humUse" class="sheet-ok" type="button">Use this melody</button>
+            </div>
+          </div>
+          <button id="humCancel" class="sheet-cancel" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <!-- NAME sheet: name the new sound before it lands on a pad (native NameSheet intent) -->
+      <div id="nameSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="name the sound">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Name it</div>
+            <button id="nameClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sheet-sub">lowercase letters + numbers — this is what you type in <code>s("…")</code></div>
+          <input id="nameInput" class="name-input" type="text" autocomplete="off" spellcheck="false" maxlength="24" placeholder="sound">
+          <div class="sheet-actions">
+            <button id="nameOk" class="sheet-ok" type="button">Add it</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- hidden file input for opening a .cyclo / .cyclobundle from disk -->
+      <input id="cycloInput" type="file" accept=".cyclo,.cyclobundle,.zip,application/zip,text/plain" style="display:none">
+
+      <!-- FILES sheet: durable + portable songs — autosave note, named projects (open/delete),
+           save current, and download/open a .cyclo (code-only) or .cyclobundle (with your sounds) -->
+      <div id="filesSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="your songs">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Your songs</div>
+            <button id="filesClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sheet-sub"><span id="autosaveNote" class="autosave-note">your last session is saved automatically</span></div>
+          <div class="save-row">
+            <input id="projName" class="name-input" type="text" autocomplete="off" spellcheck="false" maxlength="40" placeholder="name this song">
+            <button id="projSaveBtn" class="sheet-ok" type="button">Save</button>
+          </div>
+          <div id="projList" class="proj-list" aria-label="saved songs"></div>
+          <button id="exportBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#8595;</span> <span id="exportLabel">Download .cyclo</span></button>
+          <button id="importBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#8593;</span> Open a .cyclo file</button>
+          <!-- the FACTORY EXAMPLES picker (native ProjectBrowser's built-in DEMO songs), reachable
+               from a menu after first run too -->
+          <button id="examplesBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#9834;</span> Browse examples</button>
+        </div>
+      </div>
+
+      <!-- SCOREBOARD panel (native MakerScoreboard parity): total + live code-edit multiplier +
+           streak + a per-action magnitude-bar breakdown (code edits earn the most, made legible). -->
+      <div id="scoreSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="maker score">
+        <div class="sheet score-sheet">
+          <div class="score-head">
+            <div class="sheet-title">Maker score</div>
+            <button id="sbClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sb-hero">
+            <div class="sb-hero-cap">TOTAL MAKER SCORE</div>
+            <div class="sb-hero-row">
+              <span id="sbTotal" class="sb-hero-num">0</span>
+              <span class="sb-mult-badge"><span class="sb-mult-cap">CODE NEXT</span><span id="sbMult" class="sb-mult">x1.0</span></span>
+            </div>
+            <div class="sb-stats">
+              <div class="sb-stat"><span class="sb-stat-cap">BEST SESSION</span><span id="sbBest" class="sb-stat-val">0</span></div>
+              <div class="sb-stat"><span class="sb-stat-cap">DAY STREAK</span><span id="sbStreak" class="sb-stat-val">0 days</span></div>
+              <div class="sb-stat"><span class="sb-stat-cap">CODE EDITS</span><span id="sbEdits" class="sb-stat-val">0</span></div>
+            </div>
+          </div>
+          <div class="sb-thesis">Every making move scores. Code edits earn the most &mdash; dive in, climb fast.</div>
+          <div class="sb-breakdown-cap">WHERE YOUR POINTS COME FROM</div>
+          <div id="sbBreakdown" class="sb-breakdown"></div>
+          <!-- LIVE FEED rail (Gamification), FOLDED into the score HUD (P1-e): the newest making event
+               live (colour-is-light per kind + its +points). No longer a permanent full-width element —
+               it now lives one tap inside the HUD's scoreboard; tap it for the full stream. Wired to
+               real events only (score awards + medal strikes). -->
+          <div class="sb-breakdown-cap sb-feed-cap">YOUR MAKING, LIVE</div>
+          <button id="feedRail" class="feed-rail" type="button" title="your making, live — tap for the full feed" aria-label="live feed, open the full activity stream">
+            <span id="feedRailDot" class="feed-rail-dot" aria-hidden="true"></span>
+            <span id="feedRailText" class="feed-rail-text">your making shows up here — tap a pad or edit the code</span>
+            <span id="feedRailPts" class="feed-rail-pts" aria-hidden="true"></span>
+          </button>
+          <div class="score-foot">
+            <button id="sbDailyBtn" class="sheet-key sb-daily-btn" type="button"><span class="sheet-glyph">◇</span> Today's dare</button>
+            <button id="sbShareBtn" class="sheet-ok" type="button">Share card</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAILY CHALLENGE card (native DailyChallengeCard parity): one on-device creative dare per
+           day (the Daily Groove model) — the opt-in delight that DRIVES the Maker Score's DAY STREAK.
+           Icon-first + a short VERB (a non-reader navigates by picture). Never gates PLAY. Built by
+           src/main.js from the SHARED-core dare rotation (WASM dareForDayJson) + daily.js state. -->
+      <div id="dailySheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="today's dare">
+        <div class="sheet daily-sheet">
+          <div class="score-head">
+            <div class="sheet-title">Today's dare</div>
+            <button id="dailyClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <!-- the hero: a flat recessed LCD holding the dare (icon-first + a short verb) -->
+          <div class="daily-hero">
+            <div class="daily-tag"><span id="dailyKind">SPARK</span> &mdash; DAILY DARE</div>
+            <div class="daily-hero-row">
+              <canvas id="dailyIcon" class="daily-icon" width="132" height="132" aria-hidden="true"></canvas>
+              <div class="daily-verb-wrap">
+                <div id="dailyVerb" class="daily-verb">RECORD</div>
+                <div id="dailyPrompt" class="daily-prompt">Record a sound from your kitchen</div>
+              </div>
+            </div>
+            <div id="dailyDone" class="daily-done hidden" aria-label="completed">&#10003; done today</div>
+          </div>
+          <!-- the streak strip: the DAY STREAK this dare feeds, in the same LCD voice -->
+          <div class="daily-streak">
+            <div class="daily-streak-l"><span class="daily-streak-cap">DAY STREAK</span><span id="dailyStreak" class="daily-streak-num">0 days</span></div>
+            <div id="dailyStreakNote" class="daily-streak-note">Take the dare to keep your streak alive</div>
+          </div>
+          <div class="daily-thesis">A fresh little dare every day. Always optional &mdash; never in the way of PLAY.</div>
+          <div class="score-foot">
+            <button id="dailyLater" class="sheet-cancel" type="button">Maybe later</button>
+            <button id="dailyDo" class="sheet-ok" type="button">Do it now</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE FEED panel (Gamification): the running stream of the maker's real making events —
+           scored actions (+points, colour-is-light per kind) + Maker Medal strikes, newest-first.
+           Wired ONLY to real web events (every noteScore + every medal strike); nothing is faked.
+           Opened by tapping the ambient feed rail. Built by src/main.js over the LiveFeed ring. -->
+      <div id="feedSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="live activity feed">
+        <div class="sheet feed-sheet">
+          <div class="score-head">
+            <div class="sheet-title">Live feed</div>
+            <button id="feedClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="feed-tag">Everything you make shows up here, live. Every entry is a real making move.</div>
+          <div id="feedList" class="feed-list" aria-label="recent making events"></div>
+        </div>
+      </div>
+
+      <!-- SCORE CARD preview (native ScoreCard parity): a static on-device poster you share/save.
+           Chrome-free here (the Maker Medal coins are the next web unit; the card shows locked slots). -->
+      <div id="cardSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="score card">
+        <div class="sheet card-sheet">
+          <div class="score-head">
+            <div class="sheet-title">Your score card</div>
+            <button id="cardClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="card-preview-wrap"><canvas id="cardPreview" class="card-preview" aria-label="score card preview"></canvas></div>
+          <div class="score-foot">
+            <button id="cardShareBtn" class="sheet-ok" type="button">Share card</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAKER MEDALS shelf (native MakerMedalsShelf parity): a modal in the porcelain sheet
+           language, a grid of the 8 medals. EARNED = a chrome convex-mirror dome (the LOCKED trophy
+           material, ported from the maker-medals lab); LOCKED = a matte punched blank slug. Chrome is
+           REWARD-ONLY — the card / header / close all stay flat/pressable. -->
+      <div id="medalsSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="maker medals">
+        <div class="sheet medals-sheet">
+          <div class="score-head">
+            <div class="sheet-title">Maker medals</div>
+            <span id="medalsHeadCount" class="medals-head-count">0 / 8</span>
+            <button id="medalsClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="medals-tag">You make, you earn. Every medal is struck from what you actually did.</div>
+          <div id="medalGrid" class="medal-grid" aria-label="medals"></div>
+        </div>
+      </div>
+
+      <!-- TIME-TRAVEL browser (native HistoryBrowser parity): a scrubbable timeline + tappable list of
+           every checkpoint. Scrub/tap a version to REWIND to it (the current state is snapshotted first,
+           so it is always reversible). Built by src/history-browser.js over the HistoryStore. -->
+      <div id="historySheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="time travel"></div>
+
+      <!-- CODE face: the phosphor editor + the SYMBOL / ACCESSORY ROW (native SymbolRow) -->
+      <section id="codeFace" class="face hidden">
+        <div class="screenwrap">
+          <div class="screenlabel">CODE</div>
+          <div id="editor" class="screen"></div>
+          <div class="scan" aria-hidden="true"></div>
+        </div>
+        <!-- CODE tools row (discoverability, P1-g + A2): direct doors to the two surfaces that are
+             otherwise buried from CODE — SOUNDS opens the sound browser (its USE inserts s("…") right
+             here at the caret), FX opens the effect-rack console for the section under the caret. Both
+             are reachable from PLAY too; these de-orphan them from the editor. -->
+        <div id="codeTools" class="code-tools">
+          <button id="codeSoundsBtn" class="code-tool" type="button" title="Browse sounds &amp; library — insert a sound into your code">
+            <span class="code-tool-glyph" aria-hidden="true">&#9834;</span> SOUNDS
+          </button>
+          <button id="codeFxBtn" class="code-tool" type="button" title="FX rack — the effect chain on this section">
+            <span class="code-tool-glyph" aria-hidden="true">&#10022;</span> FX
+          </button>
+        </div>
+        <!-- one-tap mini-notation punctuation, right under the code screen (above the mobile
+             keyboard). Built by src/symbolrow.js; a tap inserts at the caret with smart caret
+             placement. Also: dragging a number in the code above scrubs it (src/dragnumber.js). -->
+        <div id="symbolRowHost"></div>
+      </section>
+
+      <!-- COMPOSE face: the song arrangement timeline (native SongLane + TrackRack). Rows are the
+           `## NAME` sections, columns are the song's cycles; drag blocks to arrange. Built by
+           src/compose.js — every gesture rewrites the `song = ...` coin via the SHARED SongPlan. -->
+      <section id="composeFace" class="face hidden" aria-label="compose surface"></section>
+
+      <!-- TRANSPORT: minimal-chrome bar (docs/design-handoff.md §1). PRIMARY doors only — PLAY/STOP,
+           SHARE, FILES + a single MORE overflow door. On mobile (≤760px) this bar is FIXED to the
+           bottom of the viewport so PLAY is always in thumb reach (P0-a). The secondary reward doors
+           (MEDALS/HISTORY/HELP) live behind MORE; the live feed is folded into the score HUD (P1-e). -->
+      <div class="transport">
+        <button id="playBtn" class="play" disabled>PLAY</button>
+        <div class="meter"><div id="meterbar" class="meterbar"></div></div>
+        <!-- one-tap Share: the whole song IS this link (every song is a link) -->
+        <button id="shareBtn" class="share" type="button" disabled title="Share this song as a link">SHARE</button>
+        <!-- FILES: save/open named projects + download a .cyclo / bundle (durable + portable) -->
+        <button id="filesBtn" class="share" type="button" disabled title="Save, open, or download your songs">FILES</button>
+        <!-- MORE overflow door: collapses the secondary reward doors (medals / time travel / help)
+             behind one quiet door — a keyboard-reachable, Escape-closable menu sheet -->
+        <button id="moreBtn" class="share more-door" type="button" disabled aria-haspopup="dialog" aria-expanded="false" aria-controls="moreSheet" title="More — medals, time travel, and the language reference">MORE</button>
+      </div>
+
+      <!-- MORE overflow menu (P1-e): the tucked secondary doors — Maker Medals, Time travel, and the
+           language reference — in the porcelain sheet language. Reuses the shared sheet pattern
+           (scrim-tap / Escape / Close). Nothing removed — just one door instead of three. -->
+      <div id="moreSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="more">
+        <div class="sheet more-sheet">
+          <div class="score-head">
+            <div class="sheet-title">More</div>
+            <button id="moreClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sheet-sub">Trophies, time travel, and the language reference.</div>
+          <!-- MEDALS door (native MakerMedalsShelf door): opens the chrome trophy shelf, live n/8 count -->
+          <button id="medalsBtn" class="sheet-key" type="button" disabled title="Your Maker Medals — the chrome trophy shelf"><span class="sheet-glyph">&#9670;</span> Maker medals <span id="medalsCount" class="more-count">0/8</span></button>
+          <!-- HISTORY door (native HistoryBrowser door): opens the time-travel browser, live checkpoint count -->
+          <button id="historyBtn" class="sheet-key" type="button" disabled title="Time travel — rewind to any earlier version"><span class="sheet-glyph">&#8635;</span> Time travel <span id="historyCount" class="more-count">0</span></button>
+          <!-- HELP door (native ReferenceOverlay entry point): opens the browsable, searchable language reference -->
+          <button id="helpBtn" class="sheet-key" type="button" disabled title="Language reference — every token, transform, signal and keyword"><span class="sheet-glyph">?</span> Language reference</button>
+        </div>
+      </div>
+
+      <div id="status" class="status">booting…</div>
+    </main>
+
+    <footer class="foot">
+      cyclo — make weird music, real quick.
+    </footer>
   </div>
-  <p class="note"><b>What's real here:</b> the mini-notation parsing, euclid <code>bd(3,8)</code>,
-    alternation, stacks, the <b>voices</b> (the exact bit-identical <code>synthesizeKitSample</code>),
-    the <b>reverb</b> (<code>ReverbUnit</code>'s impulse response), the <b>drive</b> curve
-    (<code>voiceDrive</code>) and the <b>master soft-clip</b> (<code>tanh(1.5x)</code>) — all the same C++
-    that runs the native app. <b>What's still simplified:</b> delay and the LFO effects (trem / chorus /
-    phaser / ring / fold …) — next spike. The default beat above already sends the claps to the real room
-    and drives the bleep. Same brain, same voices, same space.</p>
-</div>
 
-<script src="cyclo_web.js"></script>
-<script>
-(() => {
-  "use strict";
-  let core=null, ctx=null, master=null, analyser=null, reverbConv=null, reverbSig="";
-  const kitBuf={};                 // name -> AudioBuffer of Cyclo's REAL synthesized voice
-  const driveCache={};             // "drive_tone" -> WaveShaper curve (Cyclo's real drive curve)
-  let playing=false, timer=null, nextT=0, cyc=0;
-  const flashes=[], glow={}, padEls={};
-  const $=id=>document.getElementById(id);
-  const codeEl=$("code"), statusEl=$("status"), padsEl=$("pads"), playBtn=$("play"), bpmEl=$("bpm");
+  <!-- share feedback (copied / native share sheet / samples note), styled to the design bar -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  // ---- load the WASM core ----
-  CycloCore().then(m=>{ core=m; playBtn.disabled=false; $("wasmbadge").textContent="wasm core ready";
-    $("wasmbadge").style.color="var(--phos)"; refreshPads(); });
+  <!-- CELEBRATION overlay (Gamification L2): a full-window, non-interactive canvas that plays ONE
+       weird per-challenge celebration then clears itself. pointer-events:none so it never blocks
+       making; a tap anywhere dismisses it early. -->
+  <canvas id="celebrate" class="celebrate hidden" aria-hidden="true"></canvas>
 
-  // ---- split the document into (name, chain) sections + bpm; the pattern semantics live in WASM ----
-  function sections(){
-    const out=[]; let cur=null; let bpm=120;
-    for(const raw of codeEl.value.split("\n")){
-      const line=raw.trim();
-      const bm=line.match(/^bpm\s*=\s*(\d+(?:\.\d+)?)/); if(bm){ bpm=+bm[1]; continue; }
-      if(line.startsWith("##")){ cur={name:line.slice(2).trim()||"?", chain:null}; out.push(cur); continue; }
-      if(cur && !cur.chain && /s\(\s*"/.test(line)) cur.chain=line;
-    }
-    return {tracks:out.filter(t=>t.chain), bpm};
-  }
-
-  // ---- audio ----
-  function ensure(){ if(ctx)return;
-    ctx=new (window.AudioContext||window.webkitAudioContext)();
-    master=ctx.createGain(); master.gain.value=0.9;
-    // master glue: Cyclo's tanh(1.5x) soft-clip (Saturation.h::masterSoftClip), the real ceiling
-    const glue=ctx.createWaveShaper(); glue.curve=makeCurve(x=>Math.tanh(1.5*x)); glue.oversample="2x";
-    analyser=ctx.createAnalyser(); analyser.fftSize=1024;
-    master.connect(glue); glue.connect(analyser); analyser.connect(ctx.destination);
-    buildReverb(-1,-1,-1,-1,-1);                           // default room; rebuilt if the doc overrides character
-  }
-  // Cyclo's REAL synthesized voice for `name`, from the WASM core, cached as an AudioBuffer.
-  // synthKit(name, rate) returns a Float32Array VIEW into WASM heap — copy it out at once.
-  function getBuf(name){
-    if(kitBuf[name]) return kitBuf[name];
-    const view=core.synthKit(name, ctx.sampleRate);
-    const ab=ctx.createBuffer(1, view.length, ctx.sampleRate);
-    ab.copyToChannel(Float32Array.from(view), 0);          // copy before the next WASM call
-    return (kitBuf[name]=ab);
-  }
-  // Build a ConvolverNode from Cyclo's REAL reverb impulse response (ReverbUnit / Freeverb in WASM).
-  // Freeverb is linear, so its IR is the exact reverb — same tail/damp/size/width/predelay as native.
-  function buildReverb(sz,dc,dp,pre,w){
-    const view=core.reverbImpulse(sz,dc,dp,pre,w, 2.2, ctx.sampleRate);   // 2.2s stereo IR
-    const n=view.length/2; const ab=ctx.createBuffer(2,n,ctx.sampleRate);
-    const L=ab.getChannelData(0), R=ab.getChannelData(1);
-    for(let i=0;i<n;i++){ L[i]=view[2*i]; R[i]=view[2*i+1]; }  // copy out of WASM heap at once
-    const conv=ctx.createConvolver(); conv.normalize=false;    // keep the IR's true gain (it IS the send level)
-    conv.buffer=ab; conv.connect(master);
-    reverbConv=conv;
-  }
-  // a WaveShaper transfer table for a pointwise curve f(x), x in [-1,1]
-  function makeCurve(f){ const N=2048, c=new Float32Array(N); for(let i=0;i<N;i++)c[i]=f(i/(N-1)*2-1); return c; }
-  // Cyclo's REAL per-voice drive curve (Saturation.h::voiceDrive), cached per (drive,tone)
-  function driveCurve(drive,tone){
-    const key=drive.toFixed(3)+"_"+tone.toFixed(3); if(driveCache[key])return driveCache[key];
-    const k=1+drive*drive*24, tk=Math.tanh(k), hk=k*2.4, thk=Math.tanh(hk);
-    return (driveCache[key]=makeCurve(x=>{ const soft=Math.tanh(x*k)/tk; return tone<=1e-4?soft:soft+(Math.tanh(x*hk)/thk-soft)*tone; }));
-  }
-  function chain(ev){
-    // gain -> filters -> drive -> [reverb send] -> pan -> master, from the fields the core computed
-    const g=ctx.createGain(); g.gain.value=ev.gain||1;
-    let tail=g;
-    if(ev.hpf && ev.hpf>20){    const f=ctx.createBiquadFilter(); f.type="highpass"; f.frequency.value=ev.hpf; tail.connect(f); tail=f; }
-    if(ev.lpf && ev.lpf<18000){ const f=ctx.createBiquadFilter(); f.type="lowpass";  f.frequency.value=ev.lpf; tail.connect(f); tail=f; }
-    if(ev.bpf && ev.bpf>20){    const f=ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=ev.bpf; f.Q.value=6; tail.connect(f); tail=f; }
-    if(ev.drive && ev.drive>0.001){ const ws=ctx.createWaveShaper(); ws.curve=driveCurve(ev.drive, ev.driveTone||0); ws.oversample="2x"; tail.connect(ws); tail=ws; }
-    // reverb send (mono, pre-pan) into the shared convolver bus -> master
-    if(ev.reverb && ev.reverb>0.001 && reverbConv){ const s=ctx.createGain(); s.gain.value=ev.reverb; tail.connect(s); s.connect(reverbConv); }
-    // pan -> dry master
-    const pan=ctx.createStereoPanner?ctx.createStereoPanner():null;
-    if(pan){ pan.pan.value=(ev.pan!=null?ev.pan:0.5)*2-1; tail.connect(pan); pan.connect(master); } else tail.connect(master);
-    return g;
-  }
-  // rebuild the reverb room if the doc overrides its character (rare; keyed by a signature so we
-  // don't rebuild every cycle). -1 fields keep ReverbUnit's default for that param.
-  function maybeReverbChar(ev){
-    if(!(ev.reverb>0.001)) return;
-    const hasChar = ev.revSize>=0||ev.revDecay>=0||ev.revDamp>=0||ev.revPredelay>=0||ev.revWidth>=0;
-    const sig = hasChar ? [ev.revSize,ev.revDecay,ev.revDamp,ev.revPredelay,ev.revWidth].join(",") : "";
-    if(sig!==reverbSig){ reverbSig=sig; buildReverb(ev.revSize,ev.revDecay,ev.revDamp,ev.revPredelay,ev.revWidth); }
-  }
-  function voice(ev,t){
-    ensure();
-    maybeReverbChar(ev);
-    const src=ctx.createBufferSource();
-    src.buffer=getBuf(ev.name);                            // the actual Cyclo synthesis (WASM), not a placeholder
-    src.playbackRate.value=ev.speed||1;                    // .speed repitches the real sample (as the native VoicePool does)
-    src.connect(chain(ev));
-    src.start(t);
-    flashes.push({s:ev.name,t});
-  }
-
-  // ---- lookahead scheduler; each cycle's events come from the WASM core ----
-  function cycleDur(){ return (60/(+bpmEl.value||120))*4; }
-  function scheduleCycle(when){
-    const {tracks}=sections(); let layers=0, err=null;
-    for(const tr of tracks){
-      let res; try{ res=JSON.parse(core.scheduleCycle(tr.chain, cyc)); }catch(e){ continue; }
-      if(res.error){ err=tr.name+": "+res.error; continue; }
-      if(res.events.length)layers++;
-      for(const ev of res.events) voice(ev, when+ev.t*cycleDur());
-    }
-    return {layers,err};
-  }
-  function tick(){
-    while(nextT < ctx.currentTime + 0.12){
-      const {layers,err}=scheduleCycle(nextT);
-      statusEl.innerHTML = err ? '<span class="err">! '+err+'</span>'
-        : '<span class="live">▶ playing '+layers+' layer'+(layers===1?'':'s')+'</span> · cycle '+cyc+' · scheduled by WASM core';
-      nextT+=cycleDur(); cyc++;
-    }
-  }
-  function start(){ if(!core)return; ensure(); if(ctx.state==="suspended")ctx.resume();
-    playing=true; playBtn.classList.add("on"); playBtn.textContent="■ Stop"; nextT=ctx.currentTime+0.06; cyc=0; timer=setInterval(tick,25); tick(); }
-  function stop(){ playing=false; clearInterval(timer); playBtn.classList.remove("on"); playBtn.textContent="▶ Play"; statusEl.textContent="■ stopped"; }
-  playBtn.addEventListener("click",()=>playing?stop():start());
-
-  // ---- pads + scope ----
-  function refreshPads(){
-    if(!core)return; const names=[]; const {tracks}=sections();
-    for(const tr of tracks){ let r; try{ r=JSON.parse(core.scheduleCycle(tr.chain,0)); }catch(e){ continue; } if(r.events)for(const e of r.events)if(!names.includes(e.name))names.push(e.name); }
-    padsEl.innerHTML=""; for(const k in padEls)delete padEls[k];
-    names.slice(0,8).forEach(nm=>{ const el=document.createElement("div"); el.className="pad"; el.innerHTML='<span class="glow"></span><span>'+nm+'</span>'; padsEl.appendChild(el); padEls[nm]=el; glow[nm]=0; });
-  }
-  codeEl.addEventListener("input",refreshPads);
-  const scope=$("scope"), sc=scope.getContext("2d"); let buf=null;
-  function draw(){
-    if(ctx){ const now=ctx.currentTime; for(let i=flashes.length-1;i>=0;i--)if(flashes[i].t<=now){ if(flashes[i].s in glow)glow[flashes[i].s]=1; flashes.splice(i,1);} }
-    for(const nm in padEls){ glow[nm]=Math.max(0,(glow[nm]||0)-0.06); padEls[nm].querySelector(".glow").style.opacity=glow[nm]*0.9; padEls[nm].style.color=glow[nm]>0.15?"#eafff4":""; }
-    sc.clearRect(0,0,scope.width,scope.height); sc.strokeStyle="rgba(94,242,164,.12)"; sc.beginPath(); sc.moveTo(0,scope.height/2); sc.lineTo(scope.width,scope.height/2); sc.stroke();
-    if(analyser&&playing){ if(!buf)buf=new Uint8Array(analyser.frequencyBinCount); analyser.getByteTimeDomainData(buf); sc.strokeStyle="#5ef2a4"; sc.lineWidth=2; sc.shadowColor="#5ef2a4"; sc.shadowBlur=8; sc.beginPath(); const st=scope.width/buf.length; for(let i=0;i<buf.length;i++){ const y=(buf[i]/255)*scope.height; const x=i*st; i?sc.lineTo(x,y):sc.moveTo(x,y); } sc.stroke(); sc.shadowBlur=0; }
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-})();
-</script>
+  <!-- the shared WASM brain (MODULARIZE + SINGLE_FILE) -> window.CycloCore -->
+  <script src="cyclo_web.js"></script>
+  <!-- the web-native UI bundle (CodeMirror 6 + engine glue) -->
+  <script src="app.js"></script>
 </body>
 </html>

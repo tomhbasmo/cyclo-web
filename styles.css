@@ -1,0 +1,1862 @@
+/* Cyclo web — the LOCKED design bar ported to CSS (docs/design-handoff.md):
+   Naive Bold porcelain shell (cool near-white body, ink #26282b, chunky flat green accent
+   with a hard 0-blur under-shadow) + the app's "dark-LCD inset in a light body" CODE screen
+   (phosphor-green mono). No chrome, no ~ sigils. */
+/* the LOCKED "Naive Bold" rounded display voice — Baloo 2 ExtraBold (weight 800, SIL OFL),
+   the SAME face shipped natively via CycloBinaryData (assets/fonts/Baloo2.ttf). Self-hosted as a
+   local same-origin woff2 (Latin subset, ~22 KB) — CSP-safe + zero-hosting-cost (no font CDN). */
+@font-face {
+  font-family:"Baloo 2"; font-style:normal; font-weight:800; font-display:swap;
+  src:url("fonts/Baloo2.woff2") format("woff2");
+}
+:root {
+  /* porcelain shell */
+  --body0:#f0f1f3; --body1:#e8e9eb; --body2:#e2e4e7;
+  --ink:#26282b; --ink-dim:#73777c; --well:#d8dbde;
+  --border:#cfd2d6; --edge:#c4c7cb;   /* one porcelain hairline border + one hard 0-blur key under-shadow */
+  --accent:#2fa363; --accent-deep:#1f7345; --accent-hi:#33ac69;   /* signal green — action = "go" (+ hover) */
+  --amber:#ffb454; --blue:#5b8ed4; --cyan:#58c4e0;   /* the LCD signal accents (settings/reverb blue · cyan) */
+  /* dark phosphor code screen */
+  --scr0:#0a1310; --scr1:#0b1712;
+  /* the ONE canonical dark-LCD ground: lighter --scr1 at top -> darker --scr0 at bottom (light
+     source at the top, matching every radial `at 50% -10%` screen). Every linear LCD panel uses
+     this token so adjacent screens never disagree on which way the phosphor glow falls. */
+  --lcd-ground:linear-gradient(180deg,var(--scr1),var(--scr0));
+  --phos:#4ade80; --phos-rgb:74,222,128;   /* the ONE phosphor — the native LCD green (was a stray #5ef2a4) */
+  --phos-dim:#8db9a6; --phos-mute:#4d7d68; --phos-ink:#eafff4;   /* bright phosphor ink (headings/labels on the dark screen) */
+  --line:rgba(74,222,128,.16); --line2:rgba(74,222,128,.30);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --round:"Baloo 2",system-ui,"Segoe UI",Roboto,sans-serif;   /* the LOCKED Naive Bold display voice */
+}
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; }
+/* mobile: kill the 300ms tap delay + double-tap-zoom on tappable controls app-wide
+   (value controls + pads override this to `none` to also block scroll/pan during a drag). */
+button { touch-action:manipulation; }
+body {
+  background:linear-gradient(180deg,var(--body0),var(--body1) 55%,var(--body2));
+  color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased;
+  min-height:100%;
+}
+.app { max-width:860px; margin:0 auto; padding:22px 20px 40px; }
+
+/* ---- top bar: wordmark + lights + BPM (minimal chrome) ---- */
+.topbar { display:flex; align-items:center; gap:16px; padding:6px 4px 18px; }
+.wordmark {
+  font-family:var(--round); font-weight:800; letter-spacing:-.02em; font-size:26px; color:var(--ink);
+}
+.wordmark .grain { color:var(--accent); font-size:15px; margin-left:2px; vertical-align:2px;
+  text-shadow:0 0 10px rgba(47,163,99,.5); }
+.lights { display:flex; gap:8px; align-items:center; }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--well);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); }
+.dot.rec { background:#e2b3b3; }
+.dot.play.on { background:var(--accent); box-shadow:0 0 10px rgba(47,163,99,.7); }
+.bpmwrap { display:flex; align-items:center; gap:7px; }
+.bpmwrap label { font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-dim); font-weight:600; }
+.bpmwrap input {
+  width:58px; text-align:center; font-family:var(--round); font-weight:700; font-size:15px; color:var(--ink);
+  background:var(--body0); border:1px solid var(--border); border-radius:8px; padding:6px 4px;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.06);
+}
+.spacer { flex:1; }
+.tag { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim);
+  border:1px solid var(--border); border-radius:999px; padding:4px 11px; background:var(--body0); }
+
+/* ---- the machine: porcelain housing ---- */
+.machine {
+  background:linear-gradient(180deg,#f6f7f8,#e9eaed);
+  border:1px solid var(--border); border-radius:18px; padding:16px;
+  box-shadow:0 26px 60px -30px rgba(20,24,28,.55), inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* ---- view switch: PLAY | CODE (the native pager, as a chunky tab strip) ---- */
+.tabs { display:flex; gap:6px; margin:0 0 14px; padding:4px; border-radius:12px;
+  background:var(--well); box-shadow:inset 0 1px 3px rgba(0,0,0,.14); }
+.tab {
+  flex:1; font-family:var(--round); font-weight:800; letter-spacing:.06em; font-size:14px;
+  color:var(--ink-dim); background:transparent; border:none; border-radius:9px; padding:11px 8px;
+  cursor:pointer; transition:transform .05s, box-shadow .05s, background .12s, color .12s;
+}
+.tab.on { color:#fff; background:var(--accent); box-shadow:0 3px 0 var(--accent-deep); }
+.tab.on:active { transform:translateY(2px); box-shadow:0 1px 0 var(--accent-deep); }
+.tab:not(.on):hover { color:var(--ink); }
+.tab:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+
+.face.hidden { display:none; }
+
+/* ---- the PLAY pad grid: grey real-rubber, colour-is-light (docs/design-handoff.md §2) ----
+   Pads are SQUARES (aspect-ratio:1), MPC-tight corners (~10.5% of side), matte grey rubber at
+   REST — colour is LIGHT, not paint: a dim LED light-pipe idles in the sound's colour under the
+   bottom edge, and a tap FLOODS the face in that colour (Bloom) + squishes + springs back. */
+.padgrid {
+  display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;
+  /* seat the pads in a subtly recessed porcelain deck, like the carved wells on native */
+  padding:14px; border-radius:14px;
+  background:linear-gradient(180deg,#e7e9ec,#eef0f2);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.10), inset 0 0 0 1px rgba(255,255,255,.5);
+  transition:box-shadow .12s;
+}
+/* drag an audio file over the grid: highlight the drop target in the accent green */
+.padgrid.drop { box-shadow:inset 0 0 0 2px var(--accent), inset 0 2px 6px rgba(0,0,0,.10); }
+.pad {
+  position:relative; aspect-ratio:1/1; width:100%; border:none; cursor:pointer;
+  border-radius:10.5%;
+  /* grey matte rubber face: quiet vertical shade, no wet gloss (matte is a hard rule) */
+  --tint:#35d67a;
+  background:
+    radial-gradient(120% 80% at 50% 22%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%),
+    linear-gradient(180deg,#9a9da1 0%, #8d9094 52%, #7f8286 100%);
+  box-shadow:
+    0 6px 0 #6c6f73,                          /* hard extruded side-wall (the toy 0-blur shadow) */
+    0 10px 16px -6px rgba(20,24,28,.5),        /* contact shadow on the deck */
+    inset 0 1px 0 rgba(255,255,255,.28),       /* top catch-light */
+    inset 0 -3px 6px rgba(0,0,0,.22);          /* housing shadow */
+  transition:transform .04s ease-out, box-shadow .06s ease-out;
+  touch-action:none;                           /* mobile: kill scroll/zoom/double-tap on a pad */
+  -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+  overflow:hidden;
+}
+/* the LED light-pipe under the bottom edge — idles DIM in the sound's colour (names the pad) */
+.pad-led {
+  position:absolute; left:14%; right:14%; bottom:7%; height:5px; border-radius:3px;
+  background:var(--tint); opacity:.34; filter:saturate(1.1);
+  box-shadow:0 0 6px 1px color-mix(in srgb, var(--tint) 60%, transparent);
+  transition:opacity .18s ease-out, box-shadow .18s ease-out;
+}
+/* silk-screened label: white with a soft dark halo so it reads on grey AND on a colour flood */
+.pad-label {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--round); font-weight:800; font-size:clamp(15px, 4.2vw, 26px); letter-spacing:.01em;
+  color:#f6f8f7; text-shadow:0 1px 0 rgba(0,0,0,.45), 0 0 3px rgba(0,0,0,.35);
+  pointer-events:none;
+}
+.pad:active { transform:translateY(4px); box-shadow:0 2px 0 #6c6f73, 0 4px 8px -4px rgba(20,24,28,.5),
+  inset 0 1px 0 rgba(255,255,255,.22), inset 0 -2px 5px rgba(0,0,0,.22); }
+/* keyboard focus is VISIBLE (a pad is playable by Enter/Space, so it must show focus) */
+.pad:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+/* HIT: colour floods the face (Bloom) + the light-pipe flares; JS toggles .hit for ~260ms */
+.pad.hit {
+  animation:padbloom .26s ease-out;
+}
+.pad.hit .pad-led { opacity:1; box-shadow:0 0 14px 3px var(--tint); }
+@keyframes padbloom {
+  0%   { background:
+           radial-gradient(120% 100% at 50% 55%, color-mix(in srgb, var(--tint) 92%, #fff 8%), color-mix(in srgb, var(--tint) 70%, transparent) 70%),
+           linear-gradient(180deg,#9a9da1,#7f8286);
+         transform:translateY(4px) scale(.97); }
+  100% { background:
+           radial-gradient(120% 80% at 50% 22%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%),
+           linear-gradient(180deg,#9a9da1 0%, #8d9094 52%, #7f8286 100%);
+         transform:translateY(0) scale(1); }
+}
+.playhint { margin:14px 2px 2px; font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); }
+
+/* THE COIN, surfaced from PADS (P2/B2) — a quiet, dismissible pill that says the beat IS code and
+   jumps to CODE on tap. On-brand porcelain, never loud (reward-only chrome stays off the body); the
+   × dismisses it for good (persisted). Buttons are 44px tall (touch). Hidden once dismissed. */
+.coin-hint { display:flex; align-items:stretch; gap:6px; margin:12px 2px 2px; }
+.coin-hint.hidden { display:none; }
+.coin-hint-see {
+  flex:1; min-width:0; display:flex; align-items:center; gap:9px; min-height:44px; padding:0 14px;
+  font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); text-align:left; cursor:pointer;
+  background:linear-gradient(180deg,#eef0f2,#e6e8ea); border:1px solid var(--border);
+  border-radius:11px; box-shadow:0 1px 0 rgba(255,255,255,.6); touch-action:manipulation;
+  transition:color .12s, background .12s, box-shadow .12s;
+}
+.coin-hint-see:hover { color:var(--ink); background:linear-gradient(180deg,#f2f4f6,#e9ebed); }
+.coin-hint-see:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.coin-hint-dot { flex:none; font-family:var(--mono); font-size:11px; letter-spacing:.02em;
+  color:var(--accent); font-weight:700; }
+.coin-hint-text { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.coin-hint-go { flex:none; font-family:var(--round); font-weight:800; letter-spacing:.04em;
+  font-size:12px; color:var(--accent); }
+.coin-hint-x {
+  flex:none; width:44px; min-height:44px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); font-size:18px; line-height:1; color:var(--ink-dim); cursor:pointer;
+  background:transparent; border:none; border-radius:11px; touch-action:manipulation;
+}
+.coin-hint-x:hover { color:var(--ink); }
+.coin-hint-x:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+
+/* the ADD pad: a dashed-outline porcelain tile that opens the add-a-sound sheet (a pad, not chrome) */
+.pad.add {
+  background:linear-gradient(180deg,#eef0f2,#e4e6e9);
+  box-shadow:0 6px 0 var(--border), 0 10px 16px -8px rgba(20,24,28,.35),
+    inset 0 0 0 2px rgba(38,40,43,.14), inset 0 1px 0 rgba(255,255,255,.7);
+  color:var(--ink-dim);
+}
+.pad.add::before {
+  content:"+"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--round); font-weight:800; font-size:clamp(28px,10vw,46px); color:var(--accent);
+  text-shadow:none;
+}
+.pad.add .pad-label { color:var(--ink-dim); text-shadow:none; align-items:flex-end; padding-bottom:9%;
+  font-size:clamp(10px,2.6vw,13px); letter-spacing:.14em; }
+.pad.add .pad-led { display:none; }
+.pad.add:active { transform:translateY(4px); box-shadow:0 2px 0 var(--border), inset 0 0 0 2px rgba(38,40,43,.14); }
+
+/* a "your sound" pad carries a remove affordance in the corner. It is ALWAYS visible (touch has no
+   hover, so a hover-gated control would be unreachable on mobile — memory cyclo-web-input-agnostic);
+   hover/focus just brightens it. The BUTTON is a 44px hit target (docs/web-interaction.md R2), while
+   the visible × glyph stays a small ~24px chip nested in the top-right corner (C1: the corner
+   controls were 24px, breaking the app's own 44px rule). */
+.pad .pad-remove {
+  position:absolute; top:0; right:0; width:44px; height:44px; border:none; z-index:4; cursor:pointer;
+  display:flex; align-items:flex-start; justify-content:flex-end; padding:0; margin:0;
+  background:transparent; touch-action:manipulation;
+}
+.pad .pad-remove .pad-corner-glyph {
+  margin:4px; width:24px; height:24px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); font-size:16px; line-height:1; color:#fff;
+  background:rgba(20,24,28,.5); box-shadow:0 1px 3px rgba(0,0,0,.35);
+  opacity:.72; transition:opacity .12s, background .12s;
+}
+.pad.mine:hover .pad-remove .pad-corner-glyph, .pad.mine:focus-within .pad-remove .pad-corner-glyph { opacity:1; }
+.pad .pad-remove:hover .pad-corner-glyph { background:#c0562a; }
+.pad .pad-remove:focus-visible { outline:none; }
+.pad .pad-remove:focus-visible .pad-corner-glyph { outline:2px solid #fff; outline-offset:2px; opacity:1; }
+/* a subtle corner tag marking a user's own sound (vs the built-in kit) */
+.pad.mine::after {
+  content:"MINE"; position:absolute; top:7%; left:8%; font-family:var(--mono); font-size:8px;
+  letter-spacing:.14em; color:rgba(255,255,255,.72); text-shadow:0 1px 1px rgba(0,0,0,.4); pointer-events:none;
+}
+
+/* ---- add / record / name SHEETS: porcelain cards that rise in over a dimmed shell ---- */
+.sheet-scrim {
+  position:fixed; inset:0; z-index:60; display:flex; align-items:flex-end; justify-content:center;
+  background:rgba(20,24,28,.42); backdrop-filter:blur(1.5px);
+  animation:scrimIn .16s ease-out;
+}
+.sheet-scrim.hidden { display:none; }
+/* body scroll-lock while any sheet/overlay is up (managed centrally by overlay.js) — the shell
+   behind a sheet can't scroll, and scrolling returns when the last overlay closes. */
+body.overlay-lock { overflow:hidden; }
+@keyframes scrimIn { from { opacity:0; } to { opacity:1; } }
+.sheet {
+  width:min(460px, calc(100vw - 24px)); margin-bottom:max(18px, env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,#f6f7f8,#e9eaed); border:1px solid var(--border); border-radius:18px;
+  padding:22px 22px 18px; box-shadow:0 -18px 60px -20px rgba(20,24,28,.55), inset 0 1px 0 rgba(255,255,255,.7);
+  animation:sheetRise .22s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes sheetRise { from { transform:translateY(30px); opacity:.4; } to { transform:translateY(0); opacity:1; } }
+.sheet-title { font-family:var(--round); font-weight:800; font-size:20px; color:var(--ink); }
+.sheet-sub { font-family:var(--sans); font-size:13px; color:var(--ink-dim); margin:5px 0 16px; line-height:1.5; }
+.sheet-sub code { font-family:var(--mono); font-size:12px; color:#4a4e52; }
+.sheet-key {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left; margin-bottom:10px;
+  font-family:var(--round); font-weight:700; font-size:15.5px; color:var(--ink);
+  background:var(--body0); border:1px solid var(--border); border-radius:12px; padding:15px 16px; cursor:pointer;
+  box-shadow:0 3px 0 var(--edge); transition:transform .05s, box-shadow .05s, background .12s;
+}
+.sheet-key:hover { background:#fff; }
+.sheet-key:active { transform:translateY(2px); box-shadow:0 1px 0 var(--edge); }
+.sheet-key:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.sheet-glyph { font-size:17px; color:var(--accent); width:22px; text-align:center; }
+.sheet-cancel {
+  font-family:var(--round); font-weight:700; font-size:13.5px; color:var(--ink-dim);
+  background:transparent; border:none; border-radius:10px; padding:11px 14px; cursor:pointer; margin-top:4px;
+}
+.sheet-cancel:hover { color:var(--ink); }
+.sheet-cancel:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.sheet-actions { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:16px; }
+.sheet-ok {
+  font-family:var(--round); font-weight:800; letter-spacing:.04em; font-size:14px; color:#fff;
+  background:var(--accent); border:none; border-radius:11px; padding:12px 22px; cursor:pointer;
+  box-shadow:0 3px 0 var(--accent-deep); transition:transform .05s, box-shadow .05s;
+}
+.sheet-ok:active { transform:translateY(2px); box-shadow:0 1px 0 var(--accent-deep); }
+.sheet-ok:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.name-input {
+  width:100%; font-family:var(--mono); font-weight:600; font-size:18px; color:var(--ink); letter-spacing:.02em;
+  background:var(--body0); border:1px solid var(--border); border-radius:11px; padding:13px 14px;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.08);
+}
+.name-input:focus { outline:none; border-color:var(--accent); box-shadow:inset 0 1px 3px rgba(0,0,0,.08), 0 0 0 3px rgba(47,163,99,.22); }
+
+/* ---- WELCOME / first-run front door (native Welcome.h) + the factory-examples picker ---- */
+.welcome-scrim { align-items:center; z-index:70; background:rgba(20,24,28,.55); }
+.welcome-sheet { width:min(480px, calc(100vw - 24px)); margin-bottom:0; padding:26px 24px 20px; text-align:center; }
+.welcome-screen { display:flex; flex-direction:column; }
+.welcome-screen.hidden { display:none; }
+.welcome-word { font-family:var(--round); font-weight:800; letter-spacing:-.02em; font-size:38px; color:var(--ink); line-height:1; }
+.welcome-word .grain { color:var(--accent); font-size:20px; margin-left:3px; vertical-align:4px; }
+.welcome-tag { font-family:var(--round); font-weight:800; font-size:19px; color:var(--ink); margin-top:12px; }
+.welcome-sub { font-family:var(--sans); font-size:13.5px; color:var(--ink-dim); margin:7px 4px 4px; line-height:1.5; }
+.welcome-hero { display:flex; flex-direction:column; align-items:center; gap:9px; padding:22px 0 16px; }
+.welcome-play {
+  width:104px; height:104px; border-radius:50%; border:none; cursor:pointer;
+  /* flat porcelain-bar treatment: a hard 0-blur under-shadow, NO coloured bloom (chrome is
+     reward-only — the glossy glow belonged to the medal domes, not this porcelain FAB). */
+  background:var(--accent); box-shadow:0 5px 0 var(--accent-deep);
+  display:flex; align-items:center; justify-content:center; transition:transform .06s, box-shadow .06s;
+}
+.welcome-play:hover { background:var(--accent-hi); }
+.welcome-play:active { transform:translateY(3px); box-shadow:0 2px 0 var(--accent-deep); }
+.welcome-play:focus-visible { outline:4px solid var(--ink); outline-offset:4px; }
+.welcome-play-tri { width:0; height:0; margin-left:8px;
+  border-top:22px solid transparent; border-bottom:22px solid transparent; border-left:36px solid #fff; }
+.welcome-hero-cap { font-family:var(--sans); font-size:13px; color:var(--ink-dim); font-weight:600; }
+.welcome-verb { margin-bottom:9px; }
+.welcome-picker { text-align:left; }
+.welcome-picker .sheet-title { text-align:left; }
+.ex-list { display:flex; flex-direction:column; gap:8px; margin:6px 0 14px; max-height:52vh; overflow-y:auto; }
+.ex-row {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left;
+  background:var(--body0); border:1px solid var(--border); border-radius:12px; padding:13px 15px; cursor:pointer;
+  box-shadow:0 3px 0 var(--edge); transition:transform .05s, box-shadow .05s, background .12s;
+}
+.ex-row:hover { background:#fff; }
+.ex-row:active { transform:translateY(2px); box-shadow:0 1px 0 var(--edge); }
+.ex-row:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.ex-main { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ex-name { font-family:var(--round); font-weight:700; font-size:15.5px; color:var(--ink); }
+.ex-caption { font-family:var(--mono); font-size:11px; color:var(--ink-dim); line-height:1.35;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ex-tag { font-family:var(--round); font-weight:800; font-size:10.5px; letter-spacing:.1em;
+  color:#1f7f9a; background:rgba(35,201,201,.14); border:1px solid rgba(35,201,201,.4);
+  border-radius:7px; padding:4px 8px; flex:none; }
+
+/* the RECORD stage: a big pulsing dot, a live input-level bar, an elapsed clock */
+.rec-stage { display:flex; flex-direction:column; align-items:center; gap:16px; padding:14px 0 6px; }
+/* flat matte porcelain button (was a glossy "wet" radial dome). Chrome is reward-only, so the
+   rec button gets the app's flat-face + hard 0-blur under-shadow like every other porcelain key —
+   still clearly tappable + alive (the core dot + the recording pulse carry the life), just not chromed. */
+.rec-dot {
+  width:88px; height:88px; border-radius:50%; border:none; cursor:pointer; padding:0;
+  display:flex; align-items:center; justify-content:center;
+  background:#f2ecec;
+  box-shadow:0 6px 0 #cdb3b3;
+  transition:transform .05s, box-shadow .05s;
+}
+.rec-dot:active { transform:translateY(3px); box-shadow:0 3px 0 #cdb3b3; }
+.rec-dot:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+.rec-dot-core { width:34px; height:34px; border-radius:50%; background:#d84a3a; box-shadow:0 0 0 1px rgba(0,0,0,.12) inset; transition:border-radius .15s, background .15s, transform .15s; }
+/* while recording: the dot turns into a red STOP square + pulses */
+.rec-dot.recording { animation:recPulse 1.1s ease-in-out infinite; }
+.rec-dot.recording .rec-dot-core { border-radius:7px; width:30px; height:30px; background:#e2372a; }
+@keyframes recPulse { 0%,100% { box-shadow:0 6px 0 #cdb3b3, 0 0 0 0 rgba(226,55,42,.35); } 50% { box-shadow:0 6px 0 #cdb3b3, 0 0 0 16px rgba(226,55,42,0); } }
+.rec-dot.denied { background:#e6e8ea; box-shadow:0 6px 0 var(--edge); cursor:not-allowed; }
+.rec-dot.denied .rec-dot-core { background:#a9adb2; }
+.rec-level { width:80%; height:12px; border-radius:8px; background:var(--well); box-shadow:inset 0 1px 3px rgba(0,0,0,.18); overflow:hidden; }
+.rec-level-bar { height:100%; width:0%; background:linear-gradient(90deg,#e2af57,#d84a3a); border-radius:8px; transition:width .05s linear; }
+.rec-time { font-family:var(--mono); font-size:13px; color:var(--ink-dim); }
+
+/* ---- HUM sheet: the detected-melody preview (shown before it lands as ## KEYS code) ---- */
+.hum-preview { margin-top:16px; padding-top:14px; border-top:1px solid #dfe1e4; animation:sheetRise .2s cubic-bezier(.2,.9,.3,1); }
+.hum-preview-cap { font-family:var(--mono); font-size:9px; letter-spacing:.16em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:8px; }
+.hum-contour {
+  width:100%; height:90px; display:block; border-radius:10px;
+  background:linear-gradient(180deg,#161b18,#0d100e);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.4); box-sizing:border-box;
+}
+.hum-notes { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.hum-note {
+  font-family:var(--mono); font-weight:700; font-size:13px; color:#0d100e;
+  background:linear-gradient(180deg,#8fe6b6,#5fce8f); border-radius:8px; padding:6px 10px;
+  box-shadow:0 2px 0 #3ba468;
+}
+.hum-note.rest { background:transparent; color:var(--ink-dim); box-shadow:none; padding:6px 4px; }
+
+/* the "HUM A TUNE" front door on the KEYS surface (opens the hum sheet) */
+.hum-open {
+  display:inline-flex; align-items:center; gap:8px; margin-top:12px;
+  font-family:var(--round); font-weight:800; font-size:13px; letter-spacing:.02em; color:#0d100e;
+  background:linear-gradient(180deg,#8fe6b6,#5fce8f); border:none; border-radius:11px; padding:11px 16px; cursor:pointer;
+  box-shadow:0 3px 0 #3ba468; transition:transform .05s, box-shadow .05s;
+}
+.hum-open:active { transform:translateY(2px); box-shadow:0 1px 0 #3ba468; }
+.hum-open:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.hum-open .hum-open-glyph { font-size:15px; }
+
+/* ---- FILES sheet: durable + portable songs (autosave note, projects list, export/import) ---- */
+.autosave-note { font-family:var(--mono); font-size:12px; color:var(--accent-deep); }
+.autosave-note.warn { color:#c0562a; }
+.save-row { display:flex; gap:10px; align-items:stretch; margin:2px 0 14px; }
+.save-row .name-input { flex:1; }
+.save-row .sheet-ok { padding:12px 20px; }
+.proj-list {
+  display:flex; flex-direction:column; gap:7px; max-height:260px; overflow-y:auto;
+  margin-bottom:14px; padding:2px;
+}
+.proj-empty { font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); padding:14px 6px; text-align:center; }
+.proj-row { display:flex; gap:8px; align-items:stretch; }
+.proj-open {
+  flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
+  background:var(--body0); border:1px solid var(--border); border-radius:11px; padding:11px 14px; cursor:pointer;
+  box-shadow:0 2px 0 var(--edge); transition:transform .05s, box-shadow .05s, background .12s;
+}
+.proj-open:hover { background:#fff; }
+.proj-open:active { transform:translateY(2px); box-shadow:0 1px 0 var(--edge); }
+.proj-open:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.proj-name { font-family:var(--round); font-weight:700; font-size:15px; color:var(--ink); }
+.proj-meta { font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--ink-dim); }
+.proj-del {
+  flex:none; font-family:var(--round); font-weight:800; letter-spacing:.06em; font-size:11px; color:#c0562a;
+  background:var(--body0); border:1px solid #e0c3b8; border-radius:11px; padding:0 14px; cursor:pointer;
+  box-shadow:0 2px 0 #d9c4bc; transition:transform .05s, box-shadow .05s, background .12s;
+}
+.proj-del:hover { background:#fbeee9; }
+.proj-del:active { transform:translateY(2px); box-shadow:0 1px 0 #d9c4bc; }
+.proj-del:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+
+/* dark-LCD CODE screen inset into the light body */
+.screenwrap { position:relative; border-radius:12px; overflow:hidden;
+  background:radial-gradient(120% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.06), 0 1px 0 rgba(255,255,255,.6);
+}
+.screenlabel { position:absolute; top:9px; right:12px; z-index:3; font-family:var(--mono);
+  font-size:10.5px; letter-spacing:.28em; color:var(--phos-mute); }
+.screen { height:min(52vh,440px); overflow:auto; }
+.screen .cm-editor { height:100%; }
+.scan { position:absolute; inset:0; pointer-events:none; z-index:2;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.10) 2px 3px);
+  mix-blend-mode:multiply; opacity:.45; }
+
+/* ---- CODE tools row (discoverability): direct doors to SOUNDS (the sound browser) + FX (the
+   effect rack) from the editor, so neither is buried. Dark keycaps matching the phosphor screen /
+   symbol row below it; 44px tall touch targets. ---- */
+.code-tools { display:flex; gap:6px; margin:10px 0 0; }
+.code-tool {
+  flex:1; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  font-family:var(--round); font-weight:800; letter-spacing:.08em; font-size:12.5px;
+  color:var(--phos); background:linear-gradient(180deg,#0d1a15,#0a1310);
+  border:1px solid #0a0d0c; border-radius:11px; cursor:pointer; touch-action:manipulation;
+  text-shadow:0 0 8px rgba(var(--phos-rgb),.35); transition:transform .05s, box-shadow .05s;
+  box-shadow:0 2px 0 #05201a, inset 0 0 0 1px rgba(var(--phos-rgb),.08);
+}
+.code-tool:active { transform:translateY(2px); box-shadow:0 0 0 #05201a, inset 0 0 0 1px rgba(var(--phos-rgb),.08); }
+.code-tool:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.code-tool-glyph { font-family:var(--mono); font-size:13px; opacity:.9; }
+
+/* ---- SYMBOL / ACCESSORY ROW (native SymbolRow): one-tap mini-notation punctuation under the
+   code screen. Dark keycaps that read as an extension of the phosphor editor; big 44px targets,
+   horizontally scrollable so it never wraps or clips on a phone. ---- */
+.symbolrow { display:flex; gap:6px; margin:10px 0 0; padding:6px;
+  overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+  background:var(--body2); border-radius:12px; scrollbar-width:none;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.10), 0 1px 0 rgba(255,255,255,.6); }
+.symbolrow::-webkit-scrollbar { display:none; }
+.symkey { flex:0 0 auto; min-width:46px; height:44px; padding:0 12px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-weight:700; font-size:15px; letter-spacing:.03em;
+  color:var(--phos); background:linear-gradient(180deg,#0d1a15,#0a1310);
+  border:1px solid #0a0d0c; border-radius:9px; cursor:pointer; touch-action:manipulation;
+  text-shadow:0 0 8px rgba(var(--phos-rgb),.35); transition:transform .05s, box-shadow .05s;
+  box-shadow:0 2px 0 #05201a, inset 0 0 0 1px rgba(var(--phos-rgb),.08); }
+.symkey:hover { color:var(--phos-ink); }
+.symkey:active { transform:translateY(2px); box-shadow:0 0 0 #05201a, inset 0 0 0 1px rgba(var(--phos-rgb),.14); }
+.symkey:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+
+/* ---- transport: chunky flat green Play with a hard under-shadow (Naive Bold) ---- */
+.transport { display:flex; align-items:center; gap:16px; margin:16px 2px 4px; }
+button.play {
+  font-family:var(--round); font-weight:800; letter-spacing:.08em; font-size:15px; color:#fff;
+  background:var(--accent); border:none; border-radius:12px; padding:14px 30px; cursor:pointer;
+  box-shadow:0 3px 0 var(--accent-deep); transition:transform .05s, box-shadow .05s;
+}
+button.play:active { transform:translateY(2px); box-shadow:0 1px 0 var(--accent-deep); }
+button.play.on { background:var(--amber); box-shadow:0 3px 0 #b9791f; color:#241400; }
+button.play.on:active { box-shadow:0 1px 0 #b9791f; }
+button.play:disabled { background:#c7cace; color:#8b8f93; box-shadow:0 3px 0 #a7abb0; cursor:wait; }
+button.play:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+
+.meter { flex:1; height:12px; border-radius:8px; background:var(--well);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.18); overflow:hidden; }
+.meterbar { height:100%; width:0%;
+  background:linear-gradient(90deg,var(--accent),#57c483); border-radius:8px;
+  box-shadow:0 0 10px rgba(47,163,99,.5); transition:width .06s linear; }
+
+/* ---- SHARE: a quiet porcelain action (secondary to the green Play) ---- */
+button.share {
+  font-family:var(--round); font-weight:800; letter-spacing:.08em; font-size:13px; color:var(--ink);
+  background:var(--body0); border:1px solid var(--border); border-radius:12px; padding:13px 20px; cursor:pointer;
+  box-shadow:0 3px 0 var(--edge); transition:transform .05s, box-shadow .05s, background .12s;
+}
+button.share:hover { background:#fff; }
+button.share:active { transform:translateY(2px); box-shadow:0 1px 0 var(--edge); }
+button.share:disabled { color:#a9adb2; box-shadow:0 3px 0 #d4d7db; cursor:wait; }
+button.share:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+
+/* ---- MORE: the single overflow door (P1-e) — a quiet porcelain action, same rank as SHARE/FILES ---- */
+.more-door { display:inline-flex; align-items:center; }
+/* the overflow menu sheet + its live-count chips (medals n/8, history n) */
+.more-sheet { width:min(420px, calc(100vw - 24px)); }
+.more-count { margin-left:auto; font-family:var(--mono); font-weight:700; font-size:11px; letter-spacing:.02em;
+  color:var(--ink-dim); background:var(--well); border-radius:7px; padding:2px 7px; font-variant-numeric:tabular-nums; }
+
+/* ===========================================================================
+   MOBILE SHELL (P0-a) — on a phone the transport is FIXED to the bottom of the viewport so PLAY/STOP
+   (the button the welcome tells you to press) is always in thumb reach, never below ~2.5 screens of
+   pads. The scrollable content gets padding-bottom = the bar height (+ the notch safe-area) so the
+   pads / editor / status never hide behind it. Desktop (≥761px) keeps the in-flow transport unchanged.
+   =========================================================================== */
+@media (max-width:760px) {
+  .transport {
+    position:fixed; left:0; right:0; bottom:0; z-index:40; margin:0; gap:10px;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(240,241,243,.86), var(--body2));
+    border-top:1px solid var(--border);
+    box-shadow:0 -10px 30px -14px rgba(20,24,28,.5);
+    backdrop-filter:blur(8px);
+  }
+  /* the level meter is a nice-to-have — drop it on the fixed bar so PLAY + the doors have room */
+  .transport .meter { display:none; }
+  button.play { flex:0 0 auto; padding:13px 24px; }
+  .transport .share { flex:1 1 0; min-width:0; padding:13px 8px; text-align:center; }
+  /* keep the page content clear of the fixed bar */
+  .app { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+}
+
+/* ---- opened-from-a-link banner (shared song landed) ---- */
+.shared-banner {
+  display:flex; align-items:center; gap:12px; margin:0 0 14px; padding:11px 12px 11px 16px;
+  border-radius:12px; background:linear-gradient(180deg,var(--phos-ink),#dff6ea);
+  border:1px solid #b9e3cd; box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.shared-banner.hidden { display:none; }
+.shared-note { font-family:var(--round); font-weight:700; font-size:13.5px; color:var(--accent-deep);
+  letter-spacing:.01em; }
+.shared-play {
+  font-family:var(--round); font-weight:800; letter-spacing:.04em; font-size:14px; color:#fff;
+  background:var(--accent); border:none; border-radius:10px; padding:10px 18px; cursor:pointer;
+  box-shadow:0 3px 0 var(--accent-deep); transition:transform .05s, box-shadow .05s; margin-left:auto;
+}
+.shared-play:active { transform:translateY(2px); box-shadow:0 1px 0 var(--accent-deep); }
+.shared-play:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+.shared-dismiss {
+  font-family:var(--sans); font-size:20px; line-height:1; color:var(--ink-dim); background:transparent;
+  border:none; cursor:pointer; padding:2px 6px; border-radius:8px;
+}
+.shared-dismiss:hover { color:var(--ink); }
+
+/* ---- toast: share feedback, porcelain card with a phosphor edge (bottom-center) ---- */
+.toast {
+  position:fixed; left:50%; bottom:26px; transform:translate(-50%, 14px);
+  max-width:min(90vw,420px); z-index:50; pointer-events:none;
+  font-family:var(--mono); font-size:13px; line-height:1.45; color:var(--ink);
+  background:var(--body0); border:1px solid var(--border); border-left:4px solid var(--accent);
+  border-radius:11px; padding:12px 16px; box-shadow:0 22px 50px -22px rgba(20,24,28,.6), 0 2px 0 #d4d7db;
+  opacity:0; transition:opacity .18s ease-out, transform .18s ease-out;
+}
+.toast.show { opacity:1; transform:translate(-50%, 0); }
+.toast.warn { border-left-color:var(--amber); }
+.toast .toast-sub { display:block; margin-top:4px; font-size:11.5px; color:var(--ink-dim); }
+
+/* ---- FX VIEWS: an effect's touch editor, opened by tapping its call in the code ----
+   A dark-LCD "screen" card (the effect minigame surface) with a signature-coloured rim,
+   an animated world canvas, big drag-row faders, and the live coin (the clause it writes).
+   --fx is the effect's signature colour (set inline per effect). */
+.fx-scrim {
+  position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,24,28,.5); backdrop-filter:blur(2px); animation:scrimIn .16s ease-out;
+  overscroll-behavior:contain;   /* a drag that ends here won't rubber-band / pull-to-refresh the page */
+}
+.fx-card {
+  --fx:var(--blue);
+  width:min(440px, calc(100vw - 24px)); max-height:calc(100vh - 40px); overflow:auto;
+  background:radial-gradient(130% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c; border-radius:16px; padding:16px 16px 14px;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.7), inset 0 0 0 1.5px color-mix(in srgb, var(--fx) 45%, transparent),
+    inset 0 2px 10px rgba(0,0,0,.6);
+  animation:sheetRise .2s cubic-bezier(.2,.9,.3,1);
+}
+.fx-head { display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+.fx-dot { width:12px; height:12px; border-radius:50%; background:var(--fx);
+  box-shadow:0 0 10px color-mix(in srgb, var(--fx) 70%, transparent); flex:none; }
+.fx-titles { flex:1; min-width:0; }
+.fx-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink); line-height:1.1; }
+.fx-sub { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--phos-mute); margin-top:2px; }
+.fx-close {
+  flex:none; width:34px; height:34px; border-radius:9px; border:none; cursor:pointer;
+  font-family:var(--sans); font-size:20px; line-height:1; color:var(--phos-dim);
+  background:rgba(var(--phos-rgb),.08); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.18);
+}
+.fx-close:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.16); }
+.fx-canvas {
+  display:block; width:100%; height:132px; border-radius:12px; margin-bottom:12px;
+  background:linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.12));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--fx) 22%, transparent), inset 0 2px 8px rgba(0,0,0,.5);
+}
+.fx-pills { display:flex; gap:6px; margin-bottom:12px; padding:4px; border-radius:10px;
+  background:rgba(0,0,0,.3); box-shadow:inset 0 1px 3px rgba(0,0,0,.4); }
+.fx-pill {
+  flex:1; font-family:var(--mono); font-weight:700; letter-spacing:.08em; font-size:13px;
+  color:var(--phos-dim); background:transparent; border:none; border-radius:7px; padding:9px 6px; cursor:pointer;
+}
+.fx-pill.on { color:#fff; background:var(--fx); box-shadow:0 2px 0 color-mix(in srgb, var(--fx) 55%, #000); }
+.fx-rows { display:flex; flex-direction:column; gap:9px; }
+.fx-row {
+  position:relative; height:48px; border-radius:11px; overflow:hidden; cursor:ew-resize;
+  background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.12);
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.fx-row:focus-visible { outline:2px solid var(--fx); outline-offset:2px; }
+.fx-row-fill {
+  position:absolute; inset:0 auto 0 0; width:0%;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--fx) 55%, transparent), color-mix(in srgb, var(--fx) 32%, transparent));
+  box-shadow:inset -1px 0 0 var(--fx); transition:width .03s linear;
+}
+.fx-row-label {
+  position:absolute; left:14px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-weight:700; letter-spacing:.12em; font-size:12px; color:var(--phos-ink);
+  text-shadow:0 1px 2px rgba(0,0,0,.6); pointer-events:none;
+}
+.fx-row-val {
+  position:absolute; right:14px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-size:13px; color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.4); pointer-events:none;
+}
+/* the live coin clause the editor writes. It IS the product's soul (the 1:1 coin) so it must be
+   FULLY readable — never truncated (C2: a long clause like reverb's 6 named args was cut mid-line).
+   Wrap to as many lines as needed and break inside long args so the whole clause always shows. */
+.fx-coin {
+  margin-top:12px; padding:10px 12px; border-radius:9px; font-family:var(--mono); font-size:12px;
+  line-height:1.5; color:var(--phos); background:rgba(0,0,0,.35); box-shadow:inset 0 1px 4px rgba(0,0,0,.5);
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;
+}
+/* affordance hint: states plainly that drag / scroll / arrows all work (no hover-only actions) */
+.fx-hint {
+  margin-top:8px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+  color:var(--phos-mute);
+}
+
+/* ===========================================================================
+   FX RACK CONSOLE (web-app/src/fxrack.js) — the web twin of native src/app/FxRackView.h.
+   A grid of signature-coloured tiles = the current section's effect chain IN ORDER; tap to edit,
+   drag or ◀ ▶ to reorder, + to add, × to remove. Reuses the .fx-card design-bar shell. */
+.fxrack-card { width:min(520px, calc(100vw - 24px)); }
+.fxrack-chips {
+  display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; padding:5px; border-radius:10px;
+  background:rgba(0,0,0,.3); box-shadow:inset 0 1px 3px rgba(0,0,0,.4);
+}
+.fxrack-chips.hidden { display:none; }
+.fxrack-chip {
+  font-family:var(--mono); font-weight:700; letter-spacing:.06em; font-size:11px; min-height:34px; padding:6px 12px;
+  color:var(--phos-dim); background:transparent; border:none; border-radius:7px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.14); touch-action:manipulation;
+}
+.fxrack-chip.on { color:#06120c; background:var(--tint, var(--phos)); box-shadow:none; }
+.fxrack-chip:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+
+.fxrack-grid {
+  position:relative; display:flex; flex-wrap:wrap; gap:10px;
+}
+.fxrack-empty {
+  width:100%; padding:22px 12px; text-align:center; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  color:var(--phos-mute); background:rgba(0,0,0,.22); border-radius:12px;
+  box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.08);
+}
+.fxrack-tile {
+  --fx:var(--blue);
+  position:relative; display:flex; flex-direction:column; width:calc(50% - 5px); min-height:96px;
+  padding:10px; border-radius:13px; background:linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.14));
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--fx) 60%, transparent), inset 0 2px 8px rgba(0,0,0,.5);
+  touch-action:none;
+}
+.fxrack-tile.dragging { opacity:.5; transform:scale(.97); }
+.fxrack-face {
+  flex:1; display:flex; align-items:center; gap:10px; padding:0; margin:0 0 8px; min-height:44px;
+  background:transparent; border:none; cursor:grab; text-align:left; color:inherit; touch-action:none;
+  user-select:none; -webkit-user-select:none;
+}
+.fxrack-face:active { cursor:grabbing; }
+.fxrack-face:focus-visible { outline:2px solid var(--fx); outline-offset:3px; border-radius:8px; }
+.fxrack-glyph {
+  flex:none; width:48px; height:40px; border-radius:9px;
+  background:linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.12));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--fx) 25%, transparent);
+}
+.fxrack-meta { min-width:0; }
+.fxrack-name { font-family:var(--round); font-weight:800; font-size:15px; color:var(--phos-ink); line-height:1.1; }
+.fxrack-state { font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--fx); margin-top:3px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; filter:brightness(1.25); }
+.fxrack-bar { display:flex; gap:6px; }
+.fxrack-icon {
+  flex:1; min-height:34px; font-family:var(--mono); font-size:14px; line-height:1;
+  color:var(--phos-dim); background:rgba(var(--phos-rgb),.06); border:none; border-radius:8px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.14); touch-action:manipulation;
+}
+.fxrack-icon:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.14); }
+.fxrack-icon:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.fxrack-icon.disabled { opacity:.28; cursor:default; box-shadow:none; }
+.fxrack-icon.fxrack-del { color:#e6a0a0; background:rgba(230,120,120,.1); box-shadow:inset 0 0 0 1px rgba(230,120,120,.22); }
+.fxrack-icon.fxrack-del:hover { color:#fff; background:rgba(230,120,120,.24); }
+.fxrack-add {
+  align-items:center; justify-content:center; border-style:dashed;
+  box-shadow:inset 0 0 0 1.5px rgba(var(--phos-rgb),.28); cursor:pointer; background:rgba(var(--phos-rgb),.03);
+  touch-action:manipulation;
+}
+.fxrack-add:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.fxrack-plus { font-family:var(--sans); font-size:30px; font-weight:300; color:var(--phos-dim); line-height:1; }
+.fxrack-addlbl { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--phos-mute); margin-top:4px; }
+.fxrack-drop {
+  position:absolute; width:3px; border-radius:2px; background:var(--phos); box-shadow:0 0 8px rgba(var(--phos-rgb),.6);
+  opacity:0; pointer-events:none; transition:opacity .08s;
+}
+.fxrack-drop.show { opacity:1; }
+.fxrack-picker { margin-top:12px; padding:12px; border-radius:12px; background:rgba(0,0,0,.32);
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.5); }
+.fxrack-picker.hidden { display:none; }
+.fxrack-picker-cap { font-family:var(--mono); font-size:10px; letter-spacing:.24em; color:var(--phos-mute); margin-bottom:9px; }
+.fxrack-picker-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:7px; }
+.fxrack-pick {
+  --fx:var(--blue); display:flex; align-items:center; gap:7px; min-height:40px; padding:8px 10px;
+  font-family:var(--round); font-weight:700; font-size:13px; color:var(--phos-ink); text-align:left;
+  background:rgba(255,255,255,.04); border:none; border-radius:9px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--fx) 40%, transparent); touch-action:manipulation;
+}
+.fxrack-pick:hover { background:rgba(255,255,255,.09); }
+.fxrack-pick:focus-visible { outline:2px solid var(--fx); outline-offset:2px; }
+.fxrack-pick-dot { flex:none; width:10px; height:10px; border-radius:50%; background:var(--fx);
+  box-shadow:0 0 8px color-mix(in srgb, var(--fx) 70%, transparent); }
+.fxrack-pick-name { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+
+/* the FX door on each COMPOSE channel strip (trackrack.js) */
+.tstrip-fx {
+  flex:none; min-width:40px; min-height:34px; padding:6px 10px; font-family:var(--mono); font-weight:700;
+  letter-spacing:.08em; font-size:11px; color:var(--tint, var(--phos)); background:rgba(0,0,0,.28);
+  border:none; border-radius:8px; cursor:pointer; box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--tint) 45%, transparent);
+  touch-action:manipulation;
+}
+.tstrip-fx:hover { background:rgba(0,0,0,.4); filter:brightness(1.2); }
+.tstrip-fx:focus-visible { outline:2px solid var(--tint, var(--phos)); outline-offset:2px; }
+
+/* ---- the shared OCCLUSION-SAFE readout bubble (web-app/src/gesture.js) ----
+   While dragging any value control, the live value floats ABOVE the contact point so it is
+   never hidden under the fingertip (the #2 mouse-vs-touch gotcha, memory cyclo-web-input-agnostic).
+   A phosphor pill with a downward tail pointing at the finger. */
+.gesture-bubble {
+  position:fixed; z-index:90; pointer-events:none; transform:translate(-50%, -100%);
+  font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.03em;
+  color:var(--scr0); background:var(--phos); padding:5px 11px; border-radius:9px; white-space:nowrap;
+  box-shadow:0 8px 22px -8px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.25), 0 0 14px rgba(var(--phos-rgb),.4);
+  opacity:0; transition:opacity .1s;
+}
+.gesture-bubble.show { opacity:1; }
+.gesture-bubble::after {
+  content:''; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%);
+  border:5px solid transparent; border-top-color:var(--phos); border-bottom:0;
+}
+
+/* ===========================================================================
+   GRAIN GARDEN (web-app/src/garden.js) — the chop world, the granular MINIGAME.
+   A faithful port of native GardenView (the bioluminescent night bed you PLAY) + the
+   GrainControls console tray. The canvas is the playful hero; the faders are the
+   input-agnostic/keyboard console. Lime signature (the Grain Gardener identity hue). */
+.garden-scrim {
+  position:fixed; inset:0; z-index:72; display:flex; align-items:center; justify-content:center;
+  background:rgba(12,16,14,.55); backdrop-filter:blur(2px); animation:scrimIn .16s ease-out;
+  overscroll-behavior:contain;
+}
+.garden-card {
+  --gr:#a7e34a;
+  width:min(500px, calc(100vw - 24px)); max-height:calc(100vh - 40px); overflow:auto;
+  background:radial-gradient(130% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c; border-radius:16px; padding:16px 16px 14px;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.75), inset 0 0 0 1.5px color-mix(in srgb, var(--gr) 40%, transparent),
+    inset 0 2px 10px rgba(0,0,0,.6);
+  animation:sheetRise .2s cubic-bezier(.2,.9,.3,1);
+}
+.garden-head { display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+.garden-titles { flex:1; min-width:0; }
+.garden-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink); line-height:1.1; }
+.garden-sub { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--phos-mute); margin-top:2px; }
+.garden-lock {
+  flex:none; font-family:var(--mono); font-weight:700; letter-spacing:.08em; font-size:11px;
+  color:var(--phos-dim); background:rgba(255,255,255,.06); border:none; border-radius:8px; padding:7px 11px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(167,227,74,.22);
+}
+.garden-lock.on { color:#0b0f0c; background:var(--gr); box-shadow:0 2px 0 color-mix(in srgb, var(--gr) 55%, #000); }
+.garden-lock:focus-visible { outline:2px solid var(--gr); outline-offset:2px; }
+.garden-close {
+  flex:none; width:34px; height:34px; border-radius:9px; border:none; cursor:pointer;
+  font-family:var(--sans); font-size:20px; line-height:1; color:var(--phos-dim);
+  background:rgba(var(--phos-rgb),.08); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.18);
+}
+.garden-close:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.16); }
+.garden-canvas {
+  display:block; width:100%; height:250px; border-radius:14px; margin-bottom:10px;
+  background:#050807; touch-action:none; user-select:none; -webkit-user-select:none; cursor:crosshair;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--gr) 20%, transparent), inset 0 2px 10px rgba(0,0,0,.6);
+}
+.garden-canvas:focus-visible { outline:2px solid var(--gr); outline-offset:2px; }
+.garden-coin {
+  margin-bottom:12px; padding:10px 12px; border-radius:9px; font-family:var(--mono); font-size:12px;
+  color:var(--gr); background:rgba(0,0,0,.4); box-shadow:inset 0 1px 4px rgba(0,0,0,.5);
+  white-space:nowrap; overflow-x:auto;
+}
+.garden-rows { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.garden-row {
+  position:relative; height:42px; border-radius:10px; overflow:hidden; cursor:ew-resize;
+  background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px rgba(167,227,74,.12);
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.garden-row:focus-visible { outline:2px solid var(--gr); outline-offset:2px; }
+.garden-row.off { opacity:.62; }
+.garden-row-fill {
+  position:absolute; inset:0 auto 0 0; width:0%;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--gr) 52%, transparent), color-mix(in srgb, var(--gr) 30%, transparent));
+  box-shadow:inset -1px 0 0 var(--gr); transition:width .03s linear;
+}
+.garden-row-label {
+  position:absolute; left:12px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-weight:700; letter-spacing:.1em; font-size:11px; color:var(--phos-ink);
+  text-shadow:0 1px 2px rgba(0,0,0,.6); pointer-events:none;
+}
+.garden-row-val {
+  position:absolute; right:11px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-size:12px; color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.4); pointer-events:none;
+}
+.garden-hint {
+  margin-top:9px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--phos-mute);
+}
+@media (max-width:420px) { .garden-rows { grid-template-columns:1fr; } .garden-canvas { height:210px; } }
+
+/* ===========================================================================
+   SOUND EDITOR (web-app/src/soundeditor.js) — open a sound and edit its audio.
+   A dark-LCD "screen" card in the FX minigame language: a SAMPLE opens as a WAVEFORM
+   (trim handles + norm/rev/gain + slice chips), a SYNTH VOICE opens as its recipe/code.
+   --se is the type tint (amber = sample, cyan = voice). Reuses .fx-close for the ×.
+   =========================================================================== */
+.se-scrim {
+  position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,24,28,.5); backdrop-filter:blur(2px); animation:scrimIn .16s ease-out;
+  overscroll-behavior:contain;
+}
+.se-card {
+  --se:var(--amber);
+  width:min(520px, calc(100vw - 24px)); max-height:calc(100vh - 40px); overflow:auto;
+  background:radial-gradient(130% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c; border-radius:16px; padding:16px 16px 14px;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.7), inset 0 0 0 1.5px color-mix(in srgb, var(--se) 45%, transparent),
+    inset 0 2px 10px rgba(0,0,0,.6);
+  animation:sheetRise .2s cubic-bezier(.2,.9,.3,1);
+}
+.se-head { display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+.se-dot { width:12px; height:12px; border-radius:50%; background:var(--se); flex:none;
+  box-shadow:0 0 10px color-mix(in srgb, var(--se) 70%, transparent); }
+.se-titles { flex:1; min-width:0; }
+.se-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink); line-height:1.1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.se-sub { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--phos-mute); margin-top:2px; }
+
+/* the WAVEFORM screen + the two draggable trim handles */
+.se-wavewrap {
+  position:relative; height:150px; border-radius:12px; margin-bottom:8px; overflow:hidden;
+  background:linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.12));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--se) 22%, transparent), inset 0 2px 8px rgba(0,0,0,.5);
+  touch-action:none; user-select:none; -webkit-user-select:none; cursor:ew-resize;
+}
+.se-wave { display:block; width:100%; height:100%; }
+.se-handle {
+  position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px; padding:0; border:none;
+  background:var(--se); cursor:ew-resize; box-shadow:0 0 8px color-mix(in srgb, var(--se) 70%, transparent);
+}
+.se-handle::before, .se-handle::after {
+  content:''; position:absolute; left:-6px; width:15px; height:9px; background:var(--se); border-radius:2px;
+}
+.se-handle::before { top:0; } .se-handle::after { bottom:0; }
+.se-handle:focus-visible { outline:2px solid #fff; outline-offset:1px; }
+
+.se-readout { font-family:var(--mono); font-size:11px; color:var(--phos-mute); text-align:center;
+  min-height:14px; margin-bottom:10px; }
+
+/* op keys (TRIM/NORM/REV/APPLY/CHOP/GRID) — flat phosphor keys, keyboard + pointer */
+.se-ops, .se-gainwrap, .se-slicewrap { display:flex; gap:8px; align-items:center; margin-bottom:9px; }
+.se-key {
+  flex:1; min-height:44px; font-family:var(--mono); font-weight:700; letter-spacing:.1em; font-size:12px;
+  color:var(--phos-ink); background:rgba(255,255,255,.05); border:none; border-radius:11px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--se) 24%, transparent); touch-action:manipulation;
+}
+.se-key:hover { background:rgba(255,255,255,.09); }
+.se-key:active { transform:translateY(1px); }
+.se-key:focus-visible { outline:2px solid var(--se); outline-offset:2px; }
+.se-gainwrap .se-key, .se-slicewrap .se-key { flex:none; min-width:66px; }
+
+/* value drag-rows (GAIN, SLICE sensitivity) — same shape as the FX drag-rows */
+.se-row {
+  position:relative; flex:1; height:44px; border-radius:11px; overflow:hidden; cursor:ew-resize;
+  background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--se) 14%, transparent);
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.se-row:focus-visible { outline:2px solid var(--se); outline-offset:2px; }
+.se-row-fill { position:absolute; inset:0 auto 0 0; width:0%;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--se) 50%, transparent), color-mix(in srgb, var(--se) 28%, transparent));
+  box-shadow:inset -1px 0 0 var(--se); transition:width .03s linear; }
+.se-row-label { position:absolute; left:14px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-weight:700; letter-spacing:.12em; font-size:12px; color:var(--phos-ink);
+  text-shadow:0 1px 2px rgba(0,0,0,.6); pointer-events:none; }
+.se-row-val { position:absolute; right:14px; top:50%; transform:translateY(-50%); z-index:2;
+  font-family:var(--mono); font-size:13px; color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.4); pointer-events:none; }
+
+/* slice chips — one per playable slice (s("name:k")) */
+.se-chips { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 8px; }
+.se-chip {
+  min-width:38px; min-height:38px; font-family:var(--mono); font-weight:700; font-size:13px;
+  color:var(--phos); background:rgba(255,178,69,.1); border:none; border-radius:9px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(255,178,69,.3); touch-action:manipulation;
+}
+.se-chip:focus-visible { outline:2px solid var(--se); outline-offset:2px; }
+.se-chip.hit { background:var(--se); color:#1a1207; box-shadow:0 0 14px color-mix(in srgb, var(--se) 70%, transparent); }
+
+.se-coin { padding:9px 12px; border-radius:9px; font-family:var(--mono); font-size:12px; color:var(--phos);
+  background:rgba(0,0,0,.35); box-shadow:inset 0 1px 4px rgba(0,0,0,.5); white-space:nowrap; overflow-x:auto; }
+.se-hint { margin-top:8px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.13em;
+  color:var(--phos-mute); }
+
+/* SYNTH VOICE — the recipe screen + edit-as-code primary key */
+.se-recipe {
+  font-family:var(--mono); font-size:13px; line-height:1.5; color:var(--phos); white-space:pre-wrap;
+  padding:14px 16px; margin:0 0 12px; border-radius:12px; overflow-x:auto;
+  background:linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.14));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--se) 22%, transparent), inset 0 2px 8px rgba(0,0,0,.5);
+}
+.se-primary {
+  width:100%; min-height:48px; font-family:var(--round); font-weight:800; font-size:15px; letter-spacing:.02em;
+  color:#06110c; background:var(--se); border:none; border-radius:12px; cursor:pointer; margin-top:4px;
+  box-shadow:0 3px 0 color-mix(in srgb, var(--se) 55%, #000); touch-action:manipulation;
+}
+.se-primary:active { transform:translateY(1px); box-shadow:0 2px 0 color-mix(in srgb, var(--se) 55%, #000); }
+.se-primary:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+
+/* the OPEN-TO-EDIT ✎ affordance on a pad (top-left corner; always visible, touch-reachable). The
+   BUTTON is a 44px hit target (docs/web-interaction.md R2); the visible ✎ chip stays a small ~24px
+   square nested in the corner (C1: was a 24px target, breaking the app's own 44px rule). */
+.pad-edit {
+  position:absolute; top:0; left:0; z-index:3; width:44px; height:44px; padding:0; margin:0;
+  display:flex; align-items:flex-start; justify-content:flex-start;
+  background:transparent; border:none; cursor:pointer; touch-action:manipulation;
+}
+.pad-edit .pad-corner-glyph {
+  margin:4px; width:24px; height:24px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; line-height:1; color:#fff; background:rgba(0,0,0,.34); opacity:.62;
+  transition:opacity .12s, background .12s;
+}
+.pad-edit:hover .pad-corner-glyph, .pad-edit:focus-visible .pad-corner-glyph { opacity:1; background:rgba(0,0,0,.5); }
+.pad-edit:focus-visible { outline:none; }
+.pad-edit:focus-visible .pad-corner-glyph { box-shadow:0 0 0 2px #fff; }
+
+/* ===========================================================================
+   MAKER SCORE (Gamification Layer 3) — the exponential code-edit economy.
+   A live HUD chip (top bar), the scoreboard panel, and the shareable score card.
+   All FLAT recessed-LCD readouts: chrome is reward-only, and a score is a readout
+   (the chrome treasure lives on the Maker Medal coins — the next web unit).
+   =========================================================================== */
+
+/* ---- the live HUD chip: a recessed dark-LCD readout in the porcelain top bar ---- */
+.score-hud {
+  position:relative; display:flex; align-items:center; gap:8px; cursor:pointer;
+  font-family:var(--mono); border:none; border-radius:10px; padding:7px 12px;
+  background:radial-gradient(120% 100% at 50% -20%, var(--scr1), var(--scr0));
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.1), 0 1px 0 rgba(255,255,255,.5);
+}
+.score-hud:hover { box-shadow:inset 0 2px 8px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.28), 0 1px 0 rgba(255,255,255,.5); }
+.score-hud:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.sh-cap { font-size:8.5px; letter-spacing:.24em; color:var(--phos-mute); }
+.sh-value { font-weight:700; font-size:15px; color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.4);
+  font-variant-numeric:tabular-nums; letter-spacing:.02em; }
+.sh-value.flare { animation:shflare .32s ease-out; }
+@keyframes shflare { 0% { transform:scale(1.28); color:var(--phos-ink); text-shadow:0 0 16px rgba(var(--phos-rgb),.9); } 100% { transform:scale(1); } }
+.sh-mult {
+  font-weight:700; font-size:11px; color:var(--amber); letter-spacing:.02em;
+  padding:2px 7px; border-radius:999px; background:rgba(255,180,84,.16);
+  opacity:0; transform:scale(.7); transition:opacity .18s, transform .18s;
+}
+.sh-mult.on { opacity:1; transform:scale(1); }
+.sh-pop {
+  position:absolute; right:12px; top:2px; font-weight:700; font-size:12px; color:var(--phos);
+  opacity:0; pointer-events:none; text-shadow:0 0 8px rgba(var(--phos-rgb),.6);
+}
+.sh-pop.go { animation:shpop .75s ease-out; }
+@keyframes shpop { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-22px); } }
+
+/* ---- the scoreboard + score-card sheets ---- */
+.score-sheet, .card-sheet { width:min(468px, calc(100vw - 24px)); }
+.score-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.score-head .sheet-title { margin:0; }
+
+/* the hero: a recessed dark-LCD screen with the total + live multiplier + a stat strip */
+.sb-hero {
+  border-radius:13px; padding:14px 16px 12px;
+  background:radial-gradient(130% 120% at 50% -20%, var(--scr1), var(--scr0));
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.1);
+}
+.sb-hero-cap { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--phos-mute); }
+.sb-hero-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:2px 0 12px; }
+.sb-hero-num {
+  font-family:var(--mono); font-weight:700; font-size:44px; line-height:1; color:var(--phos);
+  text-shadow:0 0 16px rgba(var(--phos-rgb),.4); font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+}
+.sb-mult-badge { display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+  padding:6px 11px; border-radius:10px; background:rgba(255,180,84,.12); flex:none; }
+.sb-mult-cap { font-family:var(--mono); font-size:9px; letter-spacing:.16em; color:rgba(255,180,84,.75); }
+.sb-mult { font-family:var(--mono); font-weight:700; font-size:20px; color:var(--amber); line-height:1;
+  font-variant-numeric:tabular-nums; opacity:.5; }
+.sb-mult.on { opacity:1; text-shadow:0 0 12px rgba(255,180,84,.5); }
+.sb-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+.sb-stat { display:flex; flex-direction:column; gap:3px; }
+.sb-stat-cap { font-family:var(--mono); font-size:9px; letter-spacing:.14em; color:var(--phos-mute); }
+.sb-stat-val { font-family:var(--mono); font-weight:700; font-size:15px; color:rgba(var(--phos-rgb),.92);
+  font-variant-numeric:tabular-nums; }
+
+.sb-thesis { font-family:var(--sans); font-size:12.5px; color:var(--ink-dim); margin:13px 2px 12px; line-height:1.45; }
+.sb-breakdown-cap { font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--ink-dim); margin:0 2px 8px; }
+
+/* the per-action breakdown: flat magnitude bars, baseline-anchored, code edits in amber */
+.sb-breakdown { display:flex; flex-direction:column; gap:2px; max-height:264px; overflow-y:auto; }
+.sb-row { display:grid; grid-template-columns:112px 1fr 40px 62px; align-items:center; gap:8px;
+  padding:5px 6px; border-radius:6px; }
+.sb-row.top { background:rgba(var(--phos-rgb),.06); }
+.sb-label { font-family:var(--sans); font-size:12px; color:var(--ink-dim); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.sb-row.top .sb-label { color:var(--ink); font-weight:600; }
+.sb-row.code .sb-label { color:var(--accent-deep); font-weight:700; }
+.sb-track { position:relative; height:9px; border-radius:5px; background:rgba(20,24,28,.16);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.2); overflow:hidden; }
+.sb-fill { position:absolute; inset:0 auto 0 0; width:0%; border-radius:5px;
+  background:var(--accent); opacity:.62; transition:width .3s ease-out; }
+.sb-row.top .sb-fill { opacity:1; }
+.sb-row.code .sb-fill { background:var(--amber); }
+.sb-count { font-family:var(--mono); font-size:11px; color:var(--ink-dim); text-align:right;
+  font-variant-numeric:tabular-nums; }
+.sb-val { font-family:var(--mono); font-weight:700; font-size:13px; color:var(--ink); text-align:right;
+  font-variant-numeric:tabular-nums; }
+.sb-row.code .sb-val { color:var(--accent-deep); }
+
+/* the live feed folded into the scoreboard (P1-e) — a caption + the recessed-LCD rail, one tap in */
+.sb-feed-cap { margin-top:16px; }
+.score-sheet .feed-rail { margin:0 0 2px; }
+
+.score-foot { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+/* the score card: the rendered poster preview, scaled to fit */
+.card-preview-wrap { display:flex; justify-content:center; margin:2px 0 4px; }
+.card-preview { display:block; max-width:100%; max-height:58vh; height:auto; width:auto; border-radius:12px;
+  box-shadow:0 20px 50px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.3); }
+
+@media (max-width:560px) {
+  .score-hud { padding:6px 9px; gap:6px; }
+  .sh-cap { display:none; }
+  .sb-hero-num { font-size:38px; }
+  .sb-row { grid-template-columns:98px 1fr 34px 54px; }
+}
+
+/* ---- status line ---- */
+.status { margin-top:12px; font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); padding:2px; min-height:18px; }
+.status .live { color:var(--accent); font-weight:600; }
+.status .err { color:#c0562a; }
+
+.foot { margin-top:22px; font-size:12.5px; color:var(--ink-dim); line-height:1.6; max-width:64ch; }
+.foot code { font-family:var(--mono); color:#4a4e52; }
+
+@media (max-width:560px) {
+  .app { padding:16px 12px 32px; }
+  .tag { display:none; }
+  .screen { height:min(46vh,380px); }
+  /* mobile "on the bus" surface: fewer, BIGGER tap targets (touch economy) */
+  .padgrid { grid-template-columns:repeat(2, 1fr); gap:14px; padding:12px; }
+  .pad-label { font-size:clamp(20px, 9vw, 34px); }
+}
+/* a medium/tablet width keeps 3 across so pads stay big and square */
+@media (min-width:561px) and (max-width:760px) {
+  .padgrid { grid-template-columns:repeat(3, 1fr); }
+}
+
+/* ===========================================================================
+   MAKER MEDALS (Gamification L1) — the chrome trophy shelf + the door + celebrations.
+   The medal DOME is the ONE chrome material in an otherwise flat, matte world (chrome is
+   REWARD-ONLY, docs/design-handoff.md): every control here (door, header, close) stays flat.
+   Ported from docs/design-lab/maker-medals.html — the LOCKED trophy look ("perfect", owner).
+   =========================================================================== */
+
+/* the MEDALS door on the transport — a flat porcelain action with a live n/8 count */
+.medals-door { display:inline-flex; align-items:center; gap:7px; }
+.medals-count { font-family:var(--mono); font-weight:700; font-size:11px; letter-spacing:.02em;
+  color:var(--ink-dim); background:var(--well); border-radius:7px; padding:2px 6px;
+  font-variant-numeric:tabular-nums; }
+
+.medals-sheet { width:min(468px, calc(100vw - 24px)); }
+.medals-head-count { margin-left:auto; margin-right:12px; font-family:var(--mono); font-weight:700;
+  font-size:13px; color:var(--ink-dim); background:var(--well); border-radius:8px; padding:5px 9px;
+  font-variant-numeric:tabular-nums; }
+.medals-tag { font-family:var(--sans); font-size:12.5px; color:var(--ink-dim); margin:2px 2px 16px; line-height:1.45; }
+
+.medal-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px 10px; }
+@media (max-width:460px) { .medal-grid { grid-template-columns:repeat(3, 1fr); } }
+.medal { display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center; }
+
+/* the puck: a domed disc. EARNED holds the chrome dome canvas; LOCKED is a matte blank slug. */
+.puck { position:relative; width:78px; height:78px; border-radius:50%; padding:0; border:0;
+  background:transparent; perspective:300px; }
+@media (max-width:460px) { .puck { width:72px; height:72px; } }
+.puck .face3d { position:absolute; inset:0; border-radius:50%; transition:transform .26s ease-in; }
+.puck.flipping .face3d { transform:rotateY(90deg); }
+@media (prefers-reduced-motion:reduce) { .puck .face3d { transition:none; } }
+
+/* blank slug: a punched, unstruck coin blank (matte — no chrome until earned) */
+.puck.blank { cursor:default; }
+.puck.blank .face3d { background:var(--well);
+  box-shadow:inset 0 2px 0 rgba(0,0,0,.08), inset 0 -1px 0 rgba(255,255,255,.7), 0 2px 0 rgba(38,40,43,.1); }
+.puck.blank .glyph { color:#a9adb2; }
+
+/* earned: the chrome dome (the canvas is the mirror; this frames it as a proud, lit disc) */
+.puck.earned .face3d { box-shadow:
+  0 12px 18px -9px rgba(20,24,30,.5), 0 3px 6px -3px rgba(20,24,30,.35),
+  inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 1px rgba(0,0,0,.5); }
+.puck canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:50%; display:block; }
+.puck .glyph { position:absolute; inset:0; border-radius:50%; pointer-events:none;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--round); font-weight:800; font-size:25px; }
+.puck.earned .glyph { color:rgba(20,22,26,.38); }
+
+/* one-shot light-sweep the instant a medal strikes */
+.puck .sweep { display:none; }
+.puck.earned.justEarned .sweep { display:block; position:absolute; inset:0; border-radius:50%;
+  pointer-events:none; background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.85) 50%, transparent 70%);
+  background-size:240% 100%; animation:medalSweep .7s ease-out 1 both; }
+@keyframes medalSweep { from { background-position:120% 0; } to { background-position:-60% 0; } }
+@media (prefers-reduced-motion:reduce) { .puck.earned.justEarned .sweep { display:none; } }
+
+.medal .bar { width:40px; height:5px; border-radius:99px; background:var(--mc, var(--well)); }
+.medal.locked .bar { background:var(--well); }
+.medal .name { font-family:var(--round); font-weight:800; font-size:11.5px; letter-spacing:.05em; color:var(--ink); }
+.medal.locked .name { color:var(--ink-dim); }
+.medal .sub { font-family:var(--sans); font-size:10px; line-height:1.3; color:var(--ink-dim); max-width:92px; }
+
+/* the CELEBRATION overlay: a full-window, non-interactive canvas above everything */
+.celebrate { position:fixed; inset:0; z-index:80; pointer-events:none; }
+.celebrate.hidden { display:none; }
+
+/* ===========================================================================
+   MELODIC surfaces — KEYS strip + CHORDS ribbon (src/melodic.js). The web twins of
+   native PadGrid-KEYS + ChordRibbon: a recessed dark-LCD screen holds the instrument
+   (colour-is-light strips), chips pick key/scale/voices/sound. Input-agnostic — every
+   strip/key/chip is a real <button> (pointer + Enter/Space), ~44px+, visible focus. */
+.subtabs { display:flex; gap:5px; margin:0 0 12px; padding:3px; border-radius:11px;
+  background:var(--well); box-shadow:inset 0 1px 3px rgba(0,0,0,.14); }
+.subtab { flex:1; font-family:var(--round); font-weight:800; letter-spacing:.08em; font-size:12px;
+  color:var(--ink-dim); background:transparent; border:none; border-radius:8px; padding:9px 6px;
+  cursor:pointer; transition:transform .05s, box-shadow .05s, background .12s, color .12s; }
+.subtab.on { color:#fff; background:var(--accent); box-shadow:0 3px 0 var(--accent-deep); }
+.subtab.on:active { transform:translateY(2px); box-shadow:0 1px 0 var(--accent-deep); }
+.subtab:not(.on):hover { color:var(--ink); }
+.subtab:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.mpane.hidden { display:none; }
+
+/* the recessed dark screen the instrument sits in (native's paintRecessedScreen) */
+.melodic { border-radius:16px; padding:14px 14px 12px;
+  background:var(--lcd-ground);
+  box-shadow:inset 0 3px 12px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.10); }
+.msurf-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.msurf-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink);
+  display:flex; align-items:center; gap:9px; }
+.msurf-title::before { content:""; width:11px; height:11px; border-radius:50%; background:var(--phos);
+  box-shadow:0 0 9px 1px color-mix(in srgb, var(--phos) 70%, transparent); }
+.mchips { display:flex; gap:6px; align-items:stretch; flex-wrap:wrap; }
+.mchip { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+  min-width:46px; min-height:44px; padding:5px 9px; border:none; border-radius:10px; cursor:pointer;
+  background:rgba(255,255,255,.06); color:var(--phos-ink); font-family:var(--round);
+  transition:background .12s, transform .05s; touch-action:manipulation; }
+.mchip.wide { min-width:74px; }
+.mchip.oct { min-width:40px; padding:5px 6px; }
+.mchip.octval { min-width:34px; background:transparent; }
+.mchip:hover { background:rgba(255,255,255,.11); }
+.mchip:active { transform:translateY(1px); }
+.mchip:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.mchip-cap { font-family:var(--mono); font-size:8px; letter-spacing:.12em; color:var(--phos-mute); text-transform:uppercase; }
+.mchip-val { font-family:var(--round); font-weight:700; font-size:15px; color:var(--phos-ink); line-height:1; }
+
+/* KEYS — a scale strip of tall playable cells (colour-is-light light-pipe under each) */
+.keys-strip { display:flex; gap:5px; align-items:stretch; }
+.keycell { position:relative; flex:1; min-width:0; height:168px; border:none; border-radius:11px; cursor:pointer;
+  --tint:#57c06a; background:#1c2024; overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05); touch-action:none;
+  -webkit-tap-highlight-color:transparent; user-select:none; transition:transform .05s; }
+.keycell.accidental { background:#12161a; }
+.keycell.octaveup { box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.35); }
+.keycell:active { transform:translateY(2px); }
+.keycell:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.keylbl { position:absolute; left:0; right:0; top:12px; text-align:center; font-family:var(--mono);
+  font-size:12px; color:#cfe9dd; pointer-events:none; }
+.keyled { position:absolute; left:16%; right:16%; bottom:9px; height:4px; border-radius:2px;
+  background:var(--tint); opacity:.30; box-shadow:0 0 6px 1px color-mix(in srgb, var(--tint) 55%, transparent);
+  transition:opacity .18s, box-shadow .18s; }
+.keycell.lit { background:radial-gradient(120% 100% at 50% 100%, color-mix(in srgb, var(--tint) 55%, #1c2024), #1c2024 72%); }
+.keycell.lit .keyled { opacity:1; box-shadow:0 0 13px 3px var(--tint); }
+
+/* CHORDS — 7 scale-locked diatonic strips (Roman numeral, chord name, voicing dots, colour pipe) */
+.chord-ribbon { display:flex; gap:6px; align-items:stretch; touch-action:none; overscroll-behavior:contain; }
+.chordstrip { position:relative; flex:1; min-width:0; height:176px; border:none; border-radius:12px; cursor:pointer;
+  --tint:var(--blue); background:#1c2024; overflow:hidden; display:flex; flex-direction:column; align-items:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05); touch-action:none;
+  -webkit-tap-highlight-color:transparent; user-select:none; transition:transform .05s; }
+.chordstrip:active { transform:translateY(2px); }
+.chordstrip:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.chord-roman { margin-top:14px; font-family:var(--round); font-weight:800; font-size:clamp(16px,3.4vw,22px); color:#f2f5f4; pointer-events:none; }
+.chord-name { margin-top:5px; font-family:var(--mono); font-size:11px; color:#aab4b0; pointer-events:none; }
+.chord-dots { margin-top:auto; margin-bottom:26px; display:flex; gap:3px; pointer-events:none; }
+.chord-dots i { width:5px; height:5px; border-radius:50%; background:color-mix(in srgb, var(--tint) 40%, transparent); }
+.chord-pipe { position:absolute; left:16%; right:16%; bottom:10px; height:4px; border-radius:2px;
+  background:var(--tint); opacity:.30; box-shadow:0 0 6px 1px color-mix(in srgb, var(--tint) 55%, transparent);
+  transition:opacity .18s, box-shadow .18s; }
+.chordstrip.lit { background:radial-gradient(120% 100% at 50% 100%, color-mix(in srgb, var(--tint) 55%, #1c2024), #1c2024 72%); }
+.chordstrip.lit .chord-pipe { opacity:1; box-shadow:0 0 13px 3px var(--tint); }
+.chordstrip.lit .chord-dots i { background:var(--tint); }
+
+/* the coin readout — what the ribbon writes (native ChordRibbon's code bar) */
+.chord-coin { margin-top:12px; padding:9px 11px; border-radius:9px; background:rgba(0,0,0,.30);
+  font-family:var(--mono); font-size:12px; overflow:hidden; white-space:nowrap; }
+.chord-coin .coin-head { color:var(--phos-mute); }
+.chord-coin .coin-body { color:var(--phos); }
+.mhint { margin:11px 2px 2px; font-family:var(--mono); font-size:11.5px; color:var(--phos-mute); }
+
+/* ===========================================================================
+   COMPOSE — the song arrangement timeline (native SongLane + TrackRack), src/compose.js.
+   A dark-LCD console (the arrangement lives on the dark screen, like native's COMPOSE bg):
+   rows are the `## NAME` sections, columns are the song's cycles; lit contiguous runs read as
+   draggable LED blocks in the track colour (colour-is-light). A phosphor playhead sweeps the
+   audible cycle. Every gesture rewrites the `song = ...` coin via the SHARED SongPlan.
+   =========================================================================== */
+.compose-surface {
+  background:var(--lcd-ground);
+  border-radius:14px; padding:14px 12px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.10);
+}
+.compose-bar { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.compose-title { font-family:var(--round); font-weight:800; font-size:16px; color:var(--phos);
+  text-shadow:0 0 10px rgba(var(--phos-rgb),.35); letter-spacing:.02em; }
+.compose-tools { display:flex; align-items:center; gap:7px; margin-left:auto; }
+.compose-tools.hidden { display:none; }
+.compose-tool {
+  min-width:38px; min-height:38px; font-family:var(--mono); font-weight:700; font-size:16px;
+  color:var(--phos-dim); background:rgba(0,0,0,.34); border:1px solid var(--line2); border-radius:9px;
+  cursor:pointer; touch-action:manipulation;
+}
+.compose-tool:hover { color:var(--phos-ink); }
+.compose-tool:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.compose-tool.compose-clear { font-size:11px; letter-spacing:.12em; min-width:auto; padding:0 12px; }
+.compose-steplabel { font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--phos-mute);
+  min-width:44px; text-align:center; }
+
+/* empty state — the MAKE SONG seed chip (native SongLane's "Make song" chip) */
+.compose-empty { display:flex; flex-direction:column; align-items:center; gap:12px; padding:30px 16px; }
+.compose-empty.hidden { display:none; }
+.compose-make {
+  font-family:var(--round); font-weight:800; font-size:16px; letter-spacing:.06em; color:#fff;
+  background:var(--accent); border:none; border-radius:11px; padding:15px 34px; cursor:pointer;
+  box-shadow:0 4px 0 var(--accent-deep); touch-action:manipulation;
+}
+.compose-make:active { transform:translateY(3px); box-shadow:0 1px 0 var(--accent-deep); }
+.compose-make:focus-visible { outline:3px solid var(--phos); outline-offset:3px; }
+.compose-empty-sub { font-family:var(--mono); font-size:12px; color:var(--phos-mute); text-align:center; max-width:340px; }
+
+/* the scrolling timeline — long songs pan horizontally, never compress (overscroll contained) */
+.compose-scroll { overflow-x:auto; overflow-y:hidden; overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+.compose-scroll.hidden { display:none; }
+.compose-grid { position:relative; display:grid; gap:0; width:max-content; align-items:stretch; }
+
+/* the cycle-number ruler across the top */
+.compose-rulergutter {
+  position:sticky; left:0; z-index:3; height:24px; display:flex; align-items:center;
+  font-family:var(--mono); font-size:9px; letter-spacing:.22em; color:var(--phos-mute);
+  background:var(--scr1); padding-left:2px;
+}
+.compose-rulercell { height:24px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:10px; color:var(--phos-mute); }
+
+/* the section label gutter (sticky so labels stay put while the lanes pan) */
+.compose-label {
+  position:sticky; left:0; z-index:3; display:flex; align-items:center; gap:7px;
+  height:46px; padding-left:4px; padding-right:8px; background:var(--scr1);
+  font-family:var(--round); font-weight:700; font-size:13px; color:#dfeee7;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  box-shadow:1px 0 0 rgba(var(--phos-rgb),.12);
+}
+.compose-label::before { content:""; width:6px; height:26px; border-radius:2px; background:var(--tint);
+  box-shadow:0 0 8px color-mix(in srgb, var(--tint) 55%, transparent); flex:none; }
+
+/* a cycle cell — a recessed dark socket (empty) or a lit LED block in the track colour (on).
+   Contiguous lit cells join into ONE block via the run-start/mid/end corner rounding. 46px tall. */
+.ccell {
+  height:46px; border:none; margin:0; padding:0; cursor:pointer; position:relative;
+  --tint:#35d67a; background:transparent; touch-action:none; -webkit-tap-highlight-color:transparent;
+  border-right:1px solid rgba(var(--phos-rgb),.07);
+}
+.ccell:focus-visible { outline:3px solid var(--phos); outline-offset:-3px; z-index:2; }
+/* empty: a carved socket */
+.ccell.empty::after {
+  content:""; position:absolute; inset:5px 3px; border-radius:4px;
+  background:#0c0f11; box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.06);
+}
+.ccell.empty:hover::after { box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.18); }
+/* lit: a moulded LED in the track colour with a top sheen + rim glow (native SongLane LED) */
+.ccell.lit::after {
+  content:""; position:absolute; inset:5px 0; border-radius:0;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--tint) 95%, #fff 5%), color-mix(in srgb, var(--tint) 72%, #000 28%));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 0 10px -2px color-mix(in srgb, var(--tint) 60%, transparent);
+}
+.ccell.lit.run-start::after { left:3px; border-top-left-radius:6px; border-bottom-left-radius:6px; }
+.ccell.lit.run-end::after   { right:3px; border-top-right-radius:6px; border-bottom-right-radius:6px; }
+.ccell.lit.run-start.run-end::after { left:3px; right:3px; border-radius:6px; }
+/* the live playhead column tint on the cells under the sweep */
+.ccell.playing::before { content:""; position:absolute; inset:0; background:rgba(var(--phos-rgb),.10); pointer-events:none; }
+
+/* the phosphor playhead line sweeping the audible cycle */
+.compose-playhead { position:absolute; top:0; bottom:0; display:none; pointer-events:none;
+  border-left:2px solid var(--phos); box-shadow:0 0 10px rgba(var(--phos-rgb),.6); z-index:1; }
+
+.compose-hint { margin:11px 2px 0; font-family:var(--mono); font-size:11.5px; color:var(--phos-mute); line-height:1.5; }
+
+/* ===========================================================================
+   MIXER — the COMPOSE channel strips (src/trackrack.js), the web twin of native TrackRack's
+   per-section MUTE / SOLO / LEVEL / PAN. One recessed dark-LCD strip per section, sitting above
+   the arrangement timeline. colour-is-light — each strip glows its own hue. Input-agnostic:
+   LEVEL/PAN are shared attachValueDrag tracks (44px+), MUTE/SOLO are real focusable buttons.
+   =========================================================================== */
+.trackrack {
+  --mute:#e05a6a; --solo:#ffb454;
+  background:var(--lcd-ground);
+  border-radius:14px; padding:12px; margin-bottom:14px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.10);
+}
+.trackrack-bar { display:flex; align-items:baseline; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+.trackrack-title { font-family:var(--round); font-weight:800; font-size:16px; color:var(--phos);
+  text-shadow:0 0 10px rgba(var(--phos-rgb),.35); letter-spacing:.02em; }
+.trackrack-hint { font-family:var(--mono); font-size:11px; color:var(--phos-mute); letter-spacing:.02em; }
+.trackrack-empty { font-family:var(--mono); font-size:12.5px; color:var(--phos-mute); padding:16px 6px; text-align:center; }
+.trackrack-empty.hidden { display:none; }
+.trackrack-list { display:flex; flex-direction:column; gap:8px; }
+.trackrack-list.hidden { display:none; }
+
+.tstrip {
+  --tint:#35d67a; display:grid; align-items:center; gap:10px;
+  grid-template-columns:minmax(96px,1.1fr) auto minmax(120px,1.4fr) minmax(96px,1fr);
+  padding:8px 10px; border-radius:11px; background:rgba(0,0,0,.30);
+  box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.10); transition:opacity .12s;
+}
+.tstrip.inaudible { opacity:.42; }
+.tstrip-head { display:flex; align-items:center; gap:8px; min-width:0; }
+.tstrip-chip { width:6px; height:26px; border-radius:2px; background:var(--tint); flex:none;
+  box-shadow:0 0 8px color-mix(in srgb, var(--tint) 60%, transparent); }
+.tstrip-name { font-family:var(--round); font-weight:700; font-size:14px; color:#dfeee7;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.tstrip-tags { display:flex; gap:6px; flex:none; }
+.tstrip-tag {
+  width:44px; height:44px; font-family:var(--round); font-weight:800; font-size:15px;
+  color:var(--phos-dim); background:rgba(0,0,0,.34); border:1px solid var(--line2); border-radius:9px;
+  cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.tstrip-tag:hover { color:var(--phos-ink); }
+.tstrip-tag:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.tstrip-tag.tmute.on { color:#160c0e; background:var(--mute); border-color:var(--mute); box-shadow:0 0 12px -2px var(--mute); }
+.tstrip-tag.tsolo.on { color:#161009; background:var(--solo); border-color:var(--solo); box-shadow:0 0 12px -2px var(--solo); }
+
+.tstrip-ctl { display:flex; align-items:center; gap:8px; min-width:0; }
+.tstrip-cap { font-family:var(--mono); font-size:9px; letter-spacing:.14em; color:var(--phos-mute); flex:none; width:34px; }
+/* ONE fader anatomy: the mixer LEVEL/PAN tracks are the SAME flat drag-row as the FX editors
+   (.fx-row) — a flat colour fill in a squared well with a 1px leading-edge mark. colour-is-light
+   lives in the channel; NO glossy floating pill cap (chrome is reward-only). */
+.tstrip-track {
+  position:relative; flex:1 1 auto; height:44px; min-width:80px; border-radius:11px; overflow:hidden; cursor:ew-resize;
+  background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.12);
+  touch-action:none; -webkit-tap-highlight-color:transparent;
+}
+.tstrip-track:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.tstrip-unity { position:absolute; top:6px; bottom:6px; width:1px; z-index:1; background:var(--phos-mute); opacity:.7; transform:translateX(-50%); }
+.tstrip-fill { position:absolute; left:0; top:0; bottom:0; border-radius:11px 0 0 11px;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--tint) 55%, transparent), color-mix(in srgb, var(--tint) 32%, transparent));
+  box-shadow:inset -1px 0 0 var(--tint); }
+/* the position mark: a slim FLAT tick in the tint (no dome, no white gloss highlight, no glow) */
+.tstrip-knob { position:absolute; top:6px; bottom:6px; width:2px; z-index:2; border-radius:1px; transform:translateX(-50%);
+  background:var(--tint); }
+.tstrip-val { font-family:var(--mono); font-size:10.5px; color:var(--phos-dim); flex:none; width:38px; text-align:right; }
+
+@media (max-width:560px) {
+  .tstrip { grid-template-columns:1fr auto; grid-auto-rows:auto; row-gap:8px; }
+  .tstrip-ctl { grid-column:1 / -1; }
+}
+
+/* ===========================================================================
+   AUTOMATION LANE — draw an effect param's value over the cycles (src/automation.js), the web twin
+   of native src/app/AutomationStrip.h. Docked below the arrangement timeline. A recessed dark-LCD
+   screen holds a drawn per-cycle curve (the coin, over time). colour-is-light — the curve handles +
+   chip glow the param's signature hue. Input-agnostic: the plot is a Pointer-Events touch-draw
+   surface (touch-action:none) with a keyboard fallback + visible focus ring; chips + shapes are
+   real focusable buttons.
+   =========================================================================== */
+.autolane {
+  background:var(--lcd-ground);
+  border-radius:14px; padding:12px; margin-top:14px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.10);
+}
+.autolane-bar { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.autolane-titles { display:flex; flex-direction:column; gap:1px; }
+.autolane-title { font-family:var(--round); font-weight:800; font-size:16px; color:var(--phos);
+  text-shadow:0 0 10px rgba(var(--phos-rgb),.35); letter-spacing:.02em; }
+.autolane-sub { font-family:var(--mono); font-size:9px; letter-spacing:.22em; color:var(--phos-mute); }
+.autolane-empty { font-family:var(--mono); font-size:12.5px; color:var(--phos-mute); padding:16px 6px; text-align:center; }
+.autolane-empty.hidden { display:none; }
+
+/* SECTION + PARAM picker chips */
+.autolane-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.autolane-chips.hidden { display:none; }
+.autolane-chip {
+  --tint:var(--phos); display:inline-flex; align-items:center; gap:8px; min-height:38px; padding:6px 12px;
+  font-family:var(--round); font-weight:700; font-size:13px; color:#dfeee7;
+  background:rgba(0,0,0,.34); border:1px solid var(--line2); border-radius:9px; cursor:pointer;
+  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.autolane-chip:hover { color:var(--phos-ink); }
+.autolane-chip:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.autolane-paramchip { border-color:color-mix(in srgb, var(--tint) 50%, var(--line2)); }
+.autolane-chipdot { width:8px; height:8px; border-radius:50%; background:var(--phos-mute); flex:none; }
+.autolane-chipdot.tint { background:var(--tint); box-shadow:0 0 8px color-mix(in srgb, var(--tint) 70%, transparent); }
+.autolane-autodots { display:inline-flex; gap:3px; margin-left:2px; }
+.autolane-autodot { width:4px; height:4px; border-radius:50%; opacity:.85; }
+
+/* the popover section/param menu — focusable buttons, dot marks the automated params */
+.autolane-menu { display:flex; flex-direction:column; gap:3px; margin:-4px 0 10px; padding:6px;
+  border-radius:11px; background:rgba(0,0,0,.5); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.12); max-height:230px; overflow:auto; }
+.autolane-menu.hidden { display:none; }
+.autolane-menuitem {
+  --tint:var(--phos); display:flex; align-items:center; gap:9px; min-height:40px; padding:6px 10px; text-align:left;
+  font-family:var(--round); font-weight:700; font-size:13.5px; color:var(--phos-dim);
+  background:transparent; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation;
+}
+.autolane-menuitem:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.06); }
+.autolane-menuitem.on { color:var(--phos-ink); background:rgba(var(--phos-rgb),.1); }
+.autolane-menuitem:focus-visible { outline:3px solid var(--phos); outline-offset:-2px; }
+.autolane-menudot { width:8px; height:8px; border-radius:50%; background:var(--tint); flex:none; opacity:.55; }
+.autolane-menudot.auto { opacity:1; box-shadow:0 0 7px color-mix(in srgb, var(--tint) 70%, transparent); }
+
+/* the curve plot — a focusable touch-draw surface */
+.autolane-plot { position:relative; width:100%; height:168px; border-radius:11px; cursor:crosshair;
+  touch-action:none; overscroll-behavior:contain; -webkit-tap-highlight-color:transparent; }
+.autolane-plot.hidden { display:none; }
+.autolane-plot:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.autolane-canvas { display:block; width:100%; height:100%; border-radius:11px; }
+
+/* shape presets */
+.autolane-shapes { display:flex; gap:5px; margin-top:10px; }
+.autolane-shapes.hidden { display:none; }
+.autolane-shape {
+  flex:1 1 0; min-height:38px; font-family:var(--round); font-weight:700; font-size:12px; letter-spacing:.04em;
+  color:var(--phos-dim); background:rgba(0,0,0,.34); border:1px solid var(--line2); border-radius:8px;
+  cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.autolane-shape:hover { color:var(--phos-ink); }
+.autolane-shape:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+.autolane-shape.on { color:#0b120e; background:var(--phos); border-color:var(--phos); box-shadow:0 0 10px -2px var(--phos); }
+
+/* the coin the curve writes (dimmed prefix + phosphor value) */
+.autolane-code { margin-top:10px; padding:9px 12px; border-radius:9px; background:rgba(0,0,0,.4);
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.5); font-family:var(--mono); font-size:12px; line-height:1.4;
+  white-space:nowrap; overflow-x:auto; overscroll-behavior:contain; }
+.autolane-code.hidden { display:none; }
+.autolane-code-dim { color:var(--phos-mute); }
+.autolane-code-val { color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.35); }
+.autolane-hint { margin:10px 2px 0; font-family:var(--mono); font-size:11.5px; color:var(--phos-mute); line-height:1.5; }
+
+/* ===========================================================================
+   STEP grid — the groovebox step-sequencer + mini piano-roll (src/step.js), the web twin of native
+   PadGrid STEP mode. Rows = sounds (BEAT) or pitches (NOTES), columns = 16 steps. A recessed
+   dark-LCD screen holds the grid; a cell is a carved socket (empty) or a lit LED in the row colour.
+   Input-agnostic: ONE pointer paint path + every cell a real <button>; 44px targets, touch-action:none.
+   =========================================================================== */
+.step-surface { --step-col:46px; --step-gutter:72px; --step-rowh:46px; }
+.step-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.step-title { font-family:var(--round); font-weight:800; letter-spacing:.06em; font-size:18px; color:var(--phos); }
+
+/* BEAT | NOTES source toggle (native's stepSource) — a recessed 2-segment hardware switch */
+.step-srctoggle { display:flex; gap:4px; padding:3px; border-radius:10px; background:rgba(0,0,0,.34); border:1px solid var(--line2); }
+.step-src { font-family:var(--round); font-weight:800; letter-spacing:.08em; font-size:12px; color:var(--phos-dim);
+  background:transparent; border:none; border-radius:8px; padding:8px 16px; min-height:38px; cursor:pointer; touch-action:manipulation; }
+.step-src.on { color:#0b120e; background:var(--phos); box-shadow:0 0 10px -2px var(--phos); }
+.step-src:not(.on):hover { color:var(--phos-ink); }
+.step-src:focus-visible { outline:3px solid var(--phos); outline-offset:2px; }
+
+/* NOTES source chips (SOUND/SCALE/OCT) — reuse the melodic .mchip, so give them the same dark
+   recessed backing the melodic screen provides (the mchip ink is tuned for a dark ground). */
+.step-chips { display:flex; gap:6px; align-items:stretch; flex-wrap:wrap; margin-bottom:10px;
+  padding:8px; border-radius:11px; background:var(--lcd-ground);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(var(--phos-rgb),.1); }
+.step-chips.hidden { display:none; }
+.step-note { margin:0 2px 10px; font-family:var(--mono); font-size:11.5px; color:var(--amber); }
+.step-note.hidden { display:none; }
+
+.step-scroll { overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:4px;
+  max-height:60vh; border-radius:11px; background:var(--scr1); padding:6px; }
+.step-grid { position:relative; display:grid; gap:0; width:max-content; align-items:stretch; }
+
+/* the row label gutter (sticky so labels stay put while the grid pans) + a colour-is-light chip */
+.step-rowlbl { position:sticky; left:0; z-index:3; display:flex; align-items:center; gap:7px;
+  height:var(--step-rowh); padding-left:4px; padding-right:8px; background:var(--scr1);
+  font-family:var(--round); font-weight:700; font-size:12.5px; color:#dfeee7;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:1px 0 0 rgba(var(--phos-rgb),.12); }
+.step-rowlbl::before { content:""; width:6px; height:24px; border-radius:2px; background:var(--tint);
+  box-shadow:0 0 8px color-mix(in srgb, var(--tint) 55%, transparent); flex:none; }
+
+/* a step cell — a carved socket (empty) or a moulded LED (lit). 46px square touch target. */
+.scell { height:var(--step-rowh); border:none; margin:0; padding:0; cursor:pointer; position:relative;
+  --tint:#57c06a; background:transparent; touch-action:none; -webkit-tap-highlight-color:transparent; }
+.scell:focus-visible { outline:3px solid var(--phos); outline-offset:-3px; z-index:2; }
+.scell.beat1 { box-shadow:inset 1px 0 0 rgba(var(--phos-rgb),.14); }   /* a bar gutter every 4 steps */
+.scell.empty::after { content:""; position:absolute; inset:5px 3px; border-radius:5px;
+  background:#0c0f11; box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.06); }
+.scell.empty:hover::after { box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.2); }
+/* an empty cell that the beat hits (NOTES underlay): a faint amber spine "your beat is here" */
+.scell.under::after { box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(224,145,63,.28); background:#120f0a; }
+
+/* ===========================================================================
+   LIVE FEED (Gamification) — the ambient activity rail + the full-stream panel.
+   The rail is a slim recessed-LCD ticker (colour-is-light per event); the panel is
+   a porcelain sheet of the recent stream, newest-first. Design-bar, non-intrusive.
+   =========================================================================== */
+.feed-rail {
+  display:flex; align-items:center; gap:10px; width:100%; margin:10px 0 2px;
+  font-family:var(--mono); border:none; border-radius:11px; padding:9px 14px; cursor:pointer; text-align:left;
+  background:radial-gradient(140% 120% at 50% -30%, var(--scr1), var(--scr0));
+  box-shadow:inset 0 2px 9px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.1), 0 1px 0 rgba(255,255,255,.5);
+}
+.feed-rail:hover { box-shadow:inset 0 2px 9px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.26), 0 1px 0 rgba(255,255,255,.5); }
+.feed-rail:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.feed-rail-dot { flex:none; width:9px; height:9px; border-radius:50%; background:var(--phos-mute);
+  box-shadow:0 0 0 3px rgba(var(--phos-rgb),.08); transition:background .2s, box-shadow .2s; }
+.feed-rail-dot.pulse { animation:feedpulse .8s ease-out; }
+@keyframes feedpulse { 0% { transform:scale(.5); box-shadow:0 0 0 0 currentColor; } 60% { transform:scale(1.15); } 100% { transform:scale(1); box-shadow:0 0 10px 2px rgba(var(--phos-rgb),.0); } }
+.feed-rail-text { flex:1; min-width:0; font-size:12px; color:var(--phos-dim); letter-spacing:.01em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feed-rail-text.fresh { animation:feedslide .42s ease-out; color:var(--phos); }
+@keyframes feedslide { 0% { opacity:0; transform:translateY(6px); } 100% { opacity:1; transform:translateY(0); } }
+.feed-rail-pts { flex:none; font-weight:700; font-size:12px; color:var(--phos); font-variant-numeric:tabular-nums;
+  text-shadow:0 0 8px rgba(var(--phos-rgb),.4); }
+.feed-rail-pts:empty { display:none; }
+
+.feed-sheet { width:min(468px, calc(100vw - 24px)); }
+.feed-tag { font-family:var(--sans); font-size:12.5px; color:var(--ink-dim); margin:0 2px 12px; line-height:1.45; }
+.feed-list { display:flex; flex-direction:column; gap:5px; max-height:60vh; overflow-y:auto; overscroll-behavior:contain; }
+.feed-item { display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:9px;
+  background:var(--body1); box-shadow:inset 0 0 0 1px rgba(0,0,0,.05); }
+.feed-item-dot { flex:none; width:11px; height:11px; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,.04); }
+.feed-item.medal .feed-item-dot { box-shadow:0 0 0 3px rgba(0,0,0,.06), 0 0 9px 1px rgba(233,237,242,.5); }
+.feed-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.feed-item-text { font-family:var(--round); font-weight:700; font-size:13.5px; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feed-item.medal .feed-item-text { letter-spacing:.01em; }
+.feed-item-time { font-family:var(--mono); font-size:10px; letter-spacing:.03em; color:var(--ink-dim); }
+.feed-item-pts { flex:none; font-family:var(--mono); font-weight:700; font-size:13px; color:var(--accent-deep);
+  font-variant-numeric:tabular-nums; }
+.feed-item-pts:empty { display:none; }
+.feed-empty { font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); padding:16px 6px; text-align:center; }
+.feed-empty.hidden { display:none; }
+
+/* ===========================================================================
+   DAILY CHALLENGE card (native DailyChallengeCard) — a warm porcelain sheet whose data
+   area is a FLAT recessed LCD (chrome is reward-only). Icon-first + a short VERB.
+   =========================================================================== */
+.daily-sheet { width:min(430px, calc(100vw - 24px)); }
+.daily-hero {
+  position:relative; border-radius:13px; padding:14px 16px 14px;
+  background:radial-gradient(130% 120% at 50% -20%, var(--scr1), var(--scr0));
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.6), inset 0 0 0 1px rgba(var(--phos-rgb),.1);
+}
+.daily-tag { font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--phos-mute); }
+.daily-hero-row { display:flex; align-items:center; gap:14px; margin-top:10px; }
+.daily-icon { flex:none; width:66px; height:66px; }
+.daily-verb-wrap { min-width:0; }
+.daily-verb { font-family:var(--round); font-weight:800; font-size:34px; line-height:1; color:var(--phos-ink);
+  text-shadow:0 0 14px rgba(var(--phos-rgb),.35); letter-spacing:.01em; }
+.daily-prompt { font-family:var(--sans); font-size:13px; color:var(--phos-dim); margin-top:7px; line-height:1.4; }
+.daily-done { position:absolute; top:12px; right:14px; font-family:var(--mono); font-weight:700; font-size:11px;
+  letter-spacing:.06em; color:var(--phos); text-shadow:0 0 8px rgba(var(--phos-rgb),.5); }
+.daily-done.hidden { display:none; }
+.daily-streak { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px;
+  border-radius:11px; padding:11px 14px;
+  background:radial-gradient(130% 120% at 50% -20%, var(--scr1), var(--scr0));
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.08); }
+.daily-streak-l { display:flex; flex-direction:column; gap:3px; }
+.daily-streak-cap { font-family:var(--mono); font-size:9px; letter-spacing:.16em; color:var(--phos-mute); }
+.daily-streak-num { font-family:var(--mono); font-weight:700; font-size:20px; color:var(--phos);
+  text-shadow:0 0 10px rgba(var(--phos-rgb),.4); font-variant-numeric:tabular-nums; }
+.daily-streak-note { flex:1; text-align:right; font-family:var(--sans); font-size:11.5px; color:var(--phos-dim); line-height:1.35; }
+.daily-thesis { font-family:var(--sans); font-size:12px; color:var(--ink-dim); margin:12px 2px 0; line-height:1.45; }
+.sb-daily-btn { width:auto; margin:0; padding:10px 14px; margin-right:auto; }
+.score-foot .sb-daily-btn { margin-right:auto; }
+.scell.lit::after { content:""; position:absolute; inset:5px 3px; border-radius:5px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--tint) 96%, #fff 4%), color-mix(in srgb, var(--tint) 70%, #000 30%));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 0 10px -2px color-mix(in srgb, var(--tint) 60%, transparent); }
+.scell.playing::before { content:""; position:absolute; inset:0; background:rgba(var(--phos-rgb),.12); pointer-events:none; z-index:1; }
+
+/* the phosphor playhead column sweeping the audible step */
+.step-playhead { position:absolute; top:0; bottom:0; display:none; pointer-events:none;
+  border-left:2px solid var(--phos); box-shadow:0 0 10px rgba(var(--phos-rgb),.6); z-index:1; }
+
+.step-hint { margin:11px 2px 0; font-family:var(--mono); font-size:11.5px; color:var(--phos-mute); line-height:1.5; }
+
+/* ===========================================================================
+   TIME TRAVEL — the version-history browser (src/history-browser.js), the web twin of native
+   HistoryBrowser + UndoLabel. A recessed dark-LCD screen holds a phosphor SCRUBBER + a code
+   preview; below it, a tappable list of every checkpoint. Input-agnostic: the scrubber is the
+   shared attachValueDrag gesture (pointer/touch/wheel/arrows + the occlusion-safe bubble); every
+   row + REWIND is a real <button>. Flat/matte like the rest of the shell (chrome is reward-only).
+   =========================================================================== */
+
+/* the HISTORY door on the transport — a flat porcelain action with a live checkpoint count */
+.history-door { display:inline-flex; align-items:center; gap:7px; }
+
+.history-sheet { width:min(468px, calc(100vw - 24px)); max-height:calc(100vh - 40px); overflow:auto; }
+.history-surface { display:flex; flex-direction:column; }
+.hist-head-count { margin-left:auto; margin-right:12px; font-family:var(--mono); font-weight:700;
+  font-size:13px; color:var(--ink-dim); background:var(--well); border-radius:8px; padding:5px 9px;
+  font-variant-numeric:tabular-nums; }
+.hist-tag { font-family:var(--sans); font-size:12.5px; color:var(--ink-dim); margin:2px 2px 14px; line-height:1.45; }
+
+/* the recessed dark-LCD screen (native paintRecessedScreen) holding the scrubber + preview */
+.hist-screen { border-radius:16px; padding:14px; margin-bottom:14px;
+  background:var(--lcd-ground);
+  box-shadow:inset 0 3px 12px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.10); }
+
+/* the SCRUBBER — a phosphor timeline you drag through the checkpoints (oldest -> now) */
+.hist-scrub-wrap { margin-bottom:12px; }
+.hist-scrub-cap { font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--phos-mute); margin-bottom:8px; }
+.hist-scrub { position:relative; height:30px; border-radius:9px; cursor:ew-resize;
+  background:rgba(0,0,0,.34); box-shadow:inset 0 1px 4px rgba(0,0,0,.5), inset 0 0 0 1px rgba(var(--phos-rgb),.10);
+  touch-action:none; user-select:none; -webkit-user-select:none; }
+.hist-scrub:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.hist-ticks { position:absolute; inset:0; }   /* (kept for future per-tick marks; the knob rides above) */
+.hist-knob { position:absolute; top:50%; left:100%; width:16px; height:16px; border-radius:50%;
+  transform:translate(-50%,-50%); background:var(--phos);
+  box-shadow:0 0 10px 2px color-mix(in srgb, var(--phos) 65%, transparent), 0 1px 3px rgba(0,0,0,.5);
+  pointer-events:none; transition:left .05s linear; }
+.hist-scrub-ends { display:flex; justify-content:space-between; margin-top:6px;
+  font-family:var(--mono); font-size:9px; letter-spacing:.1em; color:var(--phos-mute); text-transform:uppercase; }
+
+/* the PREVIEW — the selected version's label + UndoLabel feedback + a code peek + REWIND */
+.hist-preview { display:flex; flex-direction:column; gap:7px; }
+.hist-prev-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.hist-prev-label { font-family:var(--round); font-weight:800; font-size:16px; color:var(--phos-ink); }
+.hist-prev-when { font-family:var(--mono); font-size:11px; color:var(--phos-mute); white-space:nowrap; }
+.hist-prev-meta { font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--phos-dim); }
+.hist-prev-undo { font-family:var(--mono); font-size:11px; color:var(--amber); text-shadow:0 0 8px rgba(255,180,84,.3); }
+.hist-prev-code { margin:2px 0 4px; padding:10px 12px; border-radius:9px; max-height:150px; overflow:auto;
+  font-family:var(--mono); font-size:11.5px; line-height:1.55; color:var(--phos); white-space:pre;
+  background:rgba(0,0,0,.4); box-shadow:inset 0 1px 4px rgba(0,0,0,.5); }
+.hist-restore {
+  font-family:var(--round); font-weight:800; letter-spacing:.06em; font-size:13.5px; color:#fff;
+  background:var(--accent); border:none; border-radius:11px; padding:13px 18px; cursor:pointer;
+  box-shadow:0 4px 0 var(--accent-deep); touch-action:manipulation;
+}
+.hist-restore:hover { background:var(--accent-hi); }
+.hist-restore:active { transform:translateY(3px); box-shadow:0 1px 0 var(--accent-deep); }
+.hist-restore:focus-visible { outline:3px solid var(--phos); outline-offset:3px; }
+.hist-restore:disabled { opacity:.5; cursor:default; box-shadow:0 4px 0 var(--accent-deep); }
+
+/* the LIST — tappable rows (newest-first); tap a row = rewind straight to it (native tap = restore) */
+.hist-list-cap { font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--ink-dim); margin:0 2px 8px; }
+.hist-list { display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto; overscroll-behavior:contain; }
+.hist-list.hidden { display:none; }
+.hist-row { position:relative; display:flex; flex-direction:column; gap:3px; text-align:left;
+  min-height:52px; padding:9px 74px 9px 13px; border:1px solid var(--border); border-radius:11px; cursor:pointer;
+  background:var(--body0); box-shadow:0 2px 0 #c9ccd0; transition:transform .05s, box-shadow .05s, background .12s;
+  touch-action:manipulation; }
+.hist-row:hover { background:#fff; }
+.hist-row:active { transform:translateY(2px); box-shadow:0 1px 0 #c9ccd0; }
+.hist-row.sel { border-color:var(--accent); box-shadow:0 2px 0 var(--accent-deep), inset 0 0 0 1px rgba(47,163,99,.4); }
+.hist-row:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.hist-row-top { display:flex; align-items:baseline; gap:9px; }
+.hist-row-when { font-family:var(--mono); font-size:10.5px; color:var(--ink-dim); white-space:nowrap; }
+.hist-row-label { font-family:var(--round); font-weight:700; font-size:14px; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hist-row-meta { font-family:var(--mono); font-size:10px; letter-spacing:.03em; color:var(--ink-dim); }
+.hist-row-rew { position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  font-family:var(--round); font-weight:800; font-size:10px; letter-spacing:.1em; color:var(--accent-deep);
+  background:rgba(47,163,99,.12); border-radius:7px; padding:5px 8px; }
+.hist-empty { font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); padding:16px 6px; text-align:center; }
+.hist-empty.hidden { display:none; }
+
+/* ===========================================================================
+   LANGUAGE REFERENCE OVERLAY (web-app/src/reference.js) — the web twin of native
+   src/app/ReferenceOverlay.h + HelpCard.h. A dark-LCD "data screen" (the deck's
+   reference-is-data language): a recessed filter field + a grouped, searchable list
+   of every language entry. Tapping an entry drops its example into the code. Every
+   entry is a real focusable <button> (pointer + keyboard). Reuses the phosphor palette.
+   =========================================================================== */
+.ref-scrim {
+  position:fixed; inset:0; z-index:75; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,24,28,.5); backdrop-filter:blur(2px); animation:scrimIn .16s ease-out;
+  overscroll-behavior:contain;
+}
+.ref-scrim.hidden { display:none; }
+.ref-card {
+  width:min(520px, calc(100vw - 24px)); max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column; overflow:hidden;
+  background:radial-gradient(130% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c; border-radius:16px; padding:16px 16px 14px;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.7), inset 0 0 0 1.5px rgba(var(--phos-rgb),.20),
+    inset 0 2px 10px rgba(0,0,0,.6);
+  animation:sheetRise .2s cubic-bezier(.2,.9,.3,1);
+}
+.ref-head { display:flex; align-items:flex-start; gap:11px; margin-bottom:12px; }
+.ref-titles { flex:1; min-width:0; }
+.ref-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink); line-height:1.1; }
+.ref-sub { font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--phos-mute); margin-top:3px; }
+.ref-close {
+  flex:none; width:34px; height:34px; border-radius:9px; border:none; cursor:pointer;
+  font-family:var(--sans); font-size:20px; line-height:1; color:var(--phos-dim);
+  background:rgba(var(--phos-rgb),.08); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.18); touch-action:manipulation;
+}
+.ref-close:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.16); }
+.ref-close:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+/* the recessed filter screen (the deck's DATA language) */
+.ref-filter {
+  width:100%; font-family:var(--mono); font-size:15px; color:var(--phos-ink); letter-spacing:.01em;
+  background:rgba(0,0,0,.4); border:none; border-radius:11px; padding:12px 14px; margin-bottom:12px;
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.55), inset 0 0 0 1px rgba(var(--phos-rgb),.14);
+}
+.ref-filter::placeholder { color:var(--phos-mute); }
+.ref-filter:focus { outline:none; box-shadow:inset 0 1px 4px rgba(0,0,0,.55), 0 0 0 2px rgba(var(--phos-rgb),.4); }
+.ref-list {
+  flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  display:flex; flex-direction:column; gap:6px; padding:2px; margin:0 -2px;
+}
+.ref-cat {
+  flex:none;   /* never shrink in the flex-column scroller (keeps headers off the entries below) */
+  font-family:var(--mono); font-weight:700; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--phos-mute); padding:14px 4px 4px; position:sticky; top:0; z-index:1;
+  background:linear-gradient(180deg, var(--scr0) 72%, transparent);
+}
+.ref-cat:first-child { padding-top:2px; }
+.ref-entry {
+  flex:none;   /* CRITICAL: a flex-column child in an overflow container must NOT shrink below its
+                  content, or the summary/example lines collapse and rows overlap */
+  display:flex; flex-direction:column; gap:4px; text-align:left; cursor:pointer;
+  min-height:44px; padding:11px 13px; border:none; border-radius:11px;
+  background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.12);
+  touch-action:manipulation; transition:background .1s, box-shadow .1s;
+}
+.ref-entry:hover { background:rgba(var(--phos-rgb),.08); }
+.ref-entry:active { background:rgba(var(--phos-rgb),.14); }
+.ref-entry:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.ref-entry-l1 { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.ref-entry-name {
+  font-family:var(--mono); font-weight:700; font-size:14.5px; color:var(--phos);
+  text-shadow:0 0 8px rgba(var(--phos-rgb),.3); flex:none;
+}
+.ref-entry-sig { font-family:var(--mono); font-size:12.5px; color:var(--amber); opacity:.92;
+  overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.ref-entry-sum { font-family:var(--sans); font-size:12.5px; line-height:1.4; color:var(--phos-dim); }
+.ref-entry-ex { font-family:var(--mono); font-size:11.5px; color:var(--cyan); opacity:.9;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ref-foot {
+  flex:none; margin-top:11px; padding-top:10px; border-top:1px solid rgba(var(--phos-rgb),.12);
+  font-family:var(--mono); font-size:11px; letter-spacing:.03em; color:var(--phos-mute); text-align:center;
+}
+.ref-foot.warn { color:var(--amber); }
+
+/* ===========================================================================
+   KEYBOARD SHORTCUTS cheat sheet (desktop progressive enhancement, `?` opens it).
+   The dark-LCD "data screen" language (same phosphor family as the reference),
+   with keycaps. Mobile never sees it; every listed action is also a tap away.
+   =========================================================================== */
+.cheat-scrim {
+  position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,24,28,.5); backdrop-filter:blur(2px); animation:scrimIn .16s ease-out;
+  overscroll-behavior:contain;
+}
+.cheat-scrim.hidden { display:none; }
+.cheat-card {
+  width:min(540px, calc(100vw - 24px)); max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column; overflow:hidden;
+  background:radial-gradient(130% 90% at 50% -10%, var(--scr1), var(--scr0));
+  border:1px solid #0a0d0c; border-radius:16px; padding:16px 16px 14px;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.7), inset 0 0 0 1.5px rgba(var(--phos-rgb),.20),
+    inset 0 2px 10px rgba(0,0,0,.6);
+  animation:sheetRise .2s cubic-bezier(.2,.9,.3,1);
+}
+.cheat-head { display:flex; align-items:flex-start; gap:11px; margin-bottom:12px; }
+.cheat-titles { flex:1; min-width:0; }
+.cheat-title { font-family:var(--round); font-weight:800; font-size:19px; color:var(--phos-ink); line-height:1.1; }
+.cheat-sub { font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--phos-mute); margin-top:3px; }
+.cheat-close {
+  flex:none; width:34px; height:34px; border-radius:9px; border:none; cursor:pointer;
+  font-family:var(--sans); font-size:20px; line-height:1; color:var(--phos-dim);
+  background:rgba(var(--phos-rgb),.08); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.18); touch-action:manipulation;
+}
+.cheat-close:hover { color:var(--phos-ink); background:rgba(var(--phos-rgb),.16); }
+.cheat-close:focus-visible { outline:2px solid var(--phos); outline-offset:2px; }
+.cheat-list {
+  flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  display:flex; flex-direction:column; gap:4px; padding:2px; margin:0 -2px;
+}
+.cheat-group { flex:none; margin-bottom:8px; }
+.cheat-grouphead {
+  font-family:var(--mono); font-weight:700; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--phos-mute); padding:12px 4px 6px;
+}
+.cheat-item {
+  display:flex; align-items:baseline; gap:14px; padding:7px 10px; border-radius:10px;
+  background:rgba(255,255,255,.035); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.10);
+}
+.cheat-keys { flex:none; display:flex; align-items:center; gap:4px; min-width:118px; }
+.cheat-key {
+  font-family:var(--mono); font-weight:700; font-size:12px; color:var(--phos-ink); line-height:1;
+  padding:5px 8px; min-width:22px; text-align:center; border-radius:7px;
+  background:rgba(0,0,0,.4); box-shadow:inset 0 0 0 1px rgba(var(--phos-rgb),.28), 0 1px 0 rgba(0,0,0,.5);
+}
+.cheat-key-ellipsis { background:transparent; box-shadow:none; color:var(--phos-mute); padding:5px 2px; }
+.cheat-plus { font-family:var(--mono); font-size:11px; color:var(--phos-mute); }
+.cheat-desc { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.cheat-label { font-family:var(--sans); font-size:13px; color:var(--phos-dim); line-height:1.35; }
+.cheat-note { font-family:var(--mono); font-size:10.5px; letter-spacing:.02em; color:var(--phos-mute); }
+
+/* ===========================================================================
+   SOUND PICKER / BANK BROWSER + persistent LIBRARY (native SoundPicker.h /
+   BankBrowser.h / src/engine/SoundLibrary) — one porcelain sheet listing every
+   sound grouped (kit / this song / library). Rows audition; small action keys
+   PICK / KEEP / ADD / DEL. Input-agnostic (every row + key a real <button>).
+   =========================================================================== */
+.browser-sheet { width:min(482px, calc(100vw - 24px)); }
+.browser-tag { font-family:var(--sans); font-size:12.5px; color:var(--ink-dim); margin:0 2px 12px; line-height:1.45; }
+.browser-search {
+  width:100%; font-family:var(--mono); font-size:14px; color:var(--ink); letter-spacing:.01em;
+  background:var(--body0); border:1px solid var(--border); border-radius:11px; padding:11px 13px; margin-bottom:10px;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.08);
+}
+.browser-search:focus { outline:none; border-color:var(--accent); box-shadow:inset 0 1px 3px rgba(0,0,0,.08), 0 0 0 3px rgba(47,163,99,.22); }
+.browser-list { display:flex; flex-direction:column; gap:5px; max-height:56vh; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.browser-group { display:flex; align-items:center; justify-content:space-between; padding:12px 4px 3px; }
+.browser-group-cap { font-family:var(--mono); font-size:10.5px; letter-spacing:.2em; color:var(--ink-dim); }
+.browser-group-count { font-family:var(--mono); font-size:10.5px; color:var(--ink-dim); opacity:.65; }
+.browser-row { display:flex; align-items:stretch; gap:8px; min-height:48px; }
+.browser-audio {
+  flex:1; min-width:0; display:flex; align-items:center; gap:11px; text-align:left; cursor:pointer;
+  font-weight:700; font-size:14.5px; color:var(--ink);
+  background:var(--body1); border:1px solid rgba(0,0,0,.05); border-radius:9px; padding:9px 12px;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.03); touch-action:manipulation;
+}
+.browser-audio:hover { background:#fff; }
+.browser-audio:active { transform:translateY(1px); }
+.browser-audio:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.browser-swatch { flex:none; width:11px; height:18px; border-radius:3px; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+.browser-name { flex:1; min-width:0; font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.browser-intag { flex:none; font-family:var(--mono); font-weight:700; font-size:10px; letter-spacing:.05em; color:var(--accent-deep);
+  background:rgba(47,163,99,.12); border-radius:6px; padding:3px 7px; }
+.browser-actions { flex:none; display:flex; gap:6px; align-items:stretch; }
+.browser-act {
+  font-family:var(--round); font-weight:800; font-size:11px; letter-spacing:.04em; cursor:pointer;
+  border:1px solid var(--border); border-radius:8px; padding:0 11px; min-width:46px; background:var(--body0); color:var(--ink);
+  touch-action:manipulation;
+}
+.browser-act:hover { background:#fff; }
+.browser-act:active { transform:translateY(1px); }
+.browser-act:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+.browser-act.use { color:var(--accent-deep); border-color:rgba(47,163,99,.4); }
+.browser-act.keep { color:#8a5a12; border-color:rgba(224,145,63,.45); }
+.browser-act.del { color:#a33; border-color:rgba(170,51,51,.35); }
+.browser-empty { font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); padding:22px 6px; text-align:center; line-height:1.5; }

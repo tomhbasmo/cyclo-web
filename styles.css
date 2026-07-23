@@ -12,7 +12,7 @@
 :root {
   /* porcelain shell */
   --body0:#f0f1f3; --body1:#e8e9eb; --body2:#e2e4e7;
-  --ink:#26282b; --ink-dim:#73777c; --well:#d8dbde;
+  --ink:#26282b; --ink-dim:#686c71; --well:#d8dbde;   /* ink-dim darkened to ~4.6:1 on porcelain (WCAG AA) */
   --border:#cfd2d6; --edge:#c4c7cb;   /* one porcelain hairline border + one hard 0-blur key under-shadow */
   --accent:#2fa363; --accent-deep:#1f7345; --accent-hi:#33ac69;   /* signal green — action = "go" (+ hover) */
   --amber:#ffb454; --blue:#5b8ed4; --cyan:#58c4e0;   /* the LCD signal accents (settings/reverb blue · cyan) */
@@ -31,15 +31,26 @@
 }
 * { box-sizing:border-box; }
 html, body { margin:0; height:100%; }
+/* ACCESSIBILITY: honour a reduced-motion preference app-wide — near-instant, no motion (vestibular
+   safety), while every control still works. Essential feedback just snaps instead of animating. */
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after {
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important;
+  }
+}
 /* mobile: kill the 300ms tap delay + double-tap-zoom on tappable controls app-wide
    (value controls + pads override this to `none` to also block scroll/pan during a drag). */
 button { touch-action:manipulation; }
 body {
   background:linear-gradient(180deg,var(--body0),var(--body1) 55%,var(--body2));
   color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased;
-  min-height:100%;
+  height:100%; overflow:hidden; overscroll-behavior:none;   /* NATIVE app shell — the page never scrolls */
 }
-.app { max-width:860px; margin:0 auto; padding:22px 20px 40px; }
+/* The app FILLS the viewport as a flex column (like the native window). Header + tabs fixed, transport
+   pinned at the bottom, and the active view fills the space between. Only bounded inner regions (the
+   pad deck, the editor, the mixer) scroll — never the page. */
+.app { max-width:860px; margin:0 auto; height:100dvh; display:flex; flex-direction:column; padding:14px 20px 12px; }
 
 /* ---- top bar: wordmark + lights + BPM (minimal chrome) ---- */
 .topbar { display:flex; align-items:center; gap:16px; padding:6px 4px 18px; }
@@ -51,7 +62,16 @@ body {
 .lights { display:flex; gap:8px; align-items:center; }
 .dot { width:9px; height:9px; border-radius:50%; background:var(--well);
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); }
-.dot.rec { background:#e2b3b3; }
+/* RECORD chip — a first-class, always-visible record door (on-brand porcelain pill, pressable). */
+.rec-chip { display:inline-flex; align-items:center; gap:6px; font-family:var(--round); font-weight:800;
+  font-size:11px; letter-spacing:.11em; color:#b5482f; background:linear-gradient(180deg,#fff,#f3eceb);
+  border:1px solid #e7cfc9; border-radius:999px; padding:8px 12px; cursor:pointer; box-shadow:0 2px 0 #e2cbc5; }
+.rec-chip:hover { background:linear-gradient(180deg,#fff,#f7f1f0); }
+.rec-chip:active { transform:translateY(2px); box-shadow:0 1px 0 #e2cbc5; }
+.rec-chip:focus-visible { outline:3px solid #b5482f; outline-offset:2px; }
+.rec-chip-dot { width:9px; height:9px; border-radius:50%; background:#d9483a; }
+.rec-chip.recording .rec-chip-dot { animation:recpulse 1s infinite; }
+@keyframes recpulse { 0%{box-shadow:0 0 0 0 rgba(217,72,58,.55);} 70%{box-shadow:0 0 0 6px rgba(217,72,58,0);} 100%{box-shadow:0 0 0 0 rgba(217,72,58,0);} }
 .dot.play.on { background:var(--accent); box-shadow:0 0 10px rgba(47,163,99,.7); }
 .bpmwrap { display:flex; align-items:center; gap:7px; }
 .bpmwrap label { font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-dim); font-weight:600; }
@@ -64,12 +84,36 @@ body {
 .tag { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim);
   border:1px solid var(--border); border-radius:999px; padding:4px 11px; background:var(--body0); }
 
-/* ---- the machine: porcelain housing ---- */
+/* ---- the machine: porcelain housing (fills the shell; inner regions scroll, not the page) ---- */
 .machine {
   background:linear-gradient(180deg,#f6f7f8,#e9eaed);
   border:1px solid var(--border); border-radius:18px; padding:16px;
   box-shadow:0 26px 60px -30px rgba(20,24,28,.55), inset 0 1px 0 rgba(255,255,255,.7);
+  flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden;
 }
+.topbar { flex:0 0 auto; }
+.shared-banner { flex:0 0 auto; }
+.machine > .tabs { flex:0 0 auto; }
+/* the visible view fills the machine; hidden ones drop out */
+.machine > .face { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.machine > .face.hidden { display:none; }
+.machine > .transport { flex:0 0 auto; }
+.machine > .status { flex:0 0 auto; }
+
+/* PLAY / COMPOSE sub-surface: the sub-tab strip is fixed; the active pane fills + owns its own scroll */
+#playFace > .subtabs, #composeFace > .subtabs { flex:0 0 auto; }
+.mpane, .cpane { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+/* PADS: the pane holds a fixed hint; the DECK is the one scroll region (more pads => scroll the deck) */
+#padsPane { overflow:hidden; display:flex; flex-direction:column; }
+#padsPane .padgrid { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; align-content:start; }
+#padsPane .playhint, #padsPane .coin-hint { flex:0 0 auto; }
+/* CODE: the phosphor editor fills + scrolls internally (CodeMirror); the tools + symbol row pin below */
+#codeFace > .screenwrap { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+#codeFace .screen { flex:1 1 auto; min-height:0; height:auto; }
+#codeFace #editor { position:absolute; inset:0; }
+#codeFace .screen { position:relative; }
+#codeFace #editor .cm-editor { height:100%; }
+#codeFace > #codeTools, #codeFace > #symbolRowHost { flex:0 0 auto; }
 
 /* ---- view switch: PLAY | CODE (the native pager, as a chunky tab strip) ---- */
 .tabs { display:flex; gap:6px; margin:0 0 14px; padding:4px; border-radius:12px;
@@ -91,7 +135,9 @@ body {
    REST — colour is LIGHT, not paint: a dim LED light-pipe idles in the sound's colour under the
    bottom edge, and a tap FLOODS the face in that colour (Bloom) + squishes + springs back. */
 .padgrid {
-  display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;
+  /* responsive columns so the default kit fits the deck at any width (more cols on wider screens =
+     fewer rows = fits without scrolling); mobile pins 3 across below. */
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:12px;
   /* seat the pads in a subtly recessed porcelain deck, like the carved wells on native */
   padding:14px; border-radius:14px;
   background:linear-gradient(180deg,#e7e9ec,#eef0f2);
@@ -240,6 +286,11 @@ body.overlay-lock { overflow:hidden; }
   background:linear-gradient(180deg,#f6f7f8,#e9eaed); border:1px solid var(--border); border-radius:18px;
   padding:22px 22px 18px; box-shadow:0 -18px 60px -20px rgba(20,24,28,.55), inset 0 1px 0 rgba(255,255,255,.7);
   animation:sheetRise .22s cubic-bezier(.2,.9,.3,1);
+  /* Native modal behaviour: a sheet NEVER grows past the screen. Cap it to the viewport and, only if
+     its content is genuinely long, let that content scroll INSIDE the sheet (contained, momentum) —
+     the sheet frame and the page behind it never scroll. Short sheets just fit and don't scroll. */
+  max-height:min(88vh, calc(100dvh - 20px));
+  overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
 }
 @keyframes sheetRise { from { transform:translateY(30px); opacity:.4; } to { transform:translateY(0); opacity:1; } }
 .sheet-title { font-family:var(--round); font-weight:800; font-size:20px; color:var(--ink); }
@@ -495,20 +546,17 @@ button.share:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
    pads / editor / status never hide behind it. Desktop (≥761px) keeps the in-flow transport unchanged.
    =========================================================================== */
 @media (max-width:760px) {
-  .transport {
-    position:fixed; left:0; right:0; bottom:0; z-index:40; margin:0; gap:10px;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:linear-gradient(180deg, rgba(240,241,243,.86), var(--body2));
-    border-top:1px solid var(--border);
-    box-shadow:0 -10px 30px -14px rgba(20,24,28,.5);
-    backdrop-filter:blur(8px);
-  }
-  /* the level meter is a nice-to-have — drop it on the fixed bar so PLAY + the doors have room */
+  /* the transport is a flex item at the bottom of the machine now (no fixed bar / no page padding) */
+  .transport { margin:10px 2px 0; gap:10px; }
+  /* the level meter is a nice-to-have — drop it so PLAY + the doors have room */
   .transport .meter { display:none; }
   button.play { flex:0 0 auto; padding:13px 24px; }
   .transport .share { flex:1 1 0; min-width:0; padding:13px 8px; text-align:center; }
-  /* keep the page content clear of the fixed bar */
-  .app { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  /* reclaim vertical space so PLAY/COMPOSE fit the screen */
+  .foot { display:none; }                 /* the tagline is decoration — off on mobile */
+  .topbar { gap:12px; padding:4px 4px 10px; }
+  .machine { padding:13px; }
+  .tabs { margin-bottom:10px; }
 }
 
 /* ---- opened-from-a-link banner (shared song landed) ---- */
@@ -1054,16 +1102,27 @@ button.share:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
 .foot code { font-family:var(--mono); color:#4a4e52; }
 
 @media (max-width:560px) {
-  .app { padding:16px 12px 32px; }
+  /* keep the fixed-transport bottom clearance from the ≤760 rule — only trim top/sides here */
+  .app { padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }
   .tag { display:none; }
-  .screen { height:min(46vh,380px); }
-  /* mobile "on the bus" surface: fewer, BIGGER tap targets (touch economy) */
-  .padgrid { grid-template-columns:repeat(2, 1fr); gap:14px; padding:12px; }
-  .pad-label { font-size:clamp(20px, 9vw, 34px); }
-}
-/* a medium/tablet width keeps 3 across so pads stay big and square */
-@media (min-width:561px) and (max-width:760px) {
-  .padgrid { grid-template-columns:repeat(3, 1fr); }
+  /* mobile pad deck: 3 across, tap targets ~110px (well above the 44px floor). The deck scrolls
+     inside its bounded area if you add more than fit — the page never scrolls. */
+  .padgrid { grid-template-columns:repeat(3, 1fr); gap:9px; padding:9px; }
+  .pad { aspect-ratio:1.28 / 1; }
+  .pad-label { font-size:clamp(13px, 5.5vw, 21px); }
+  /* compact the secondary chrome so the primary surface fits the viewport */
+  .tabs { margin-bottom:9px; }
+  .tab { padding:10px 6px; }
+  .subtabs { margin-bottom:8px; }
+  .subtab { padding:7px 5px; }
+  .playhint { margin:6px 2px 2px; font-size:11px; }
+  .coin-hint { margin:7px 2px 2px; }
+  .coin-hint-see { min-height:34px; padding:0 12px; }
+  .status { margin-top:7px; font-size:11.5px; min-height:14px; }
+  /* NATIVE bottom-sheet: full width, flush to the bottom edge, rounded top only — modals feel like
+     iOS sheets, cap to the viewport, and the sheet itself never scrolls the page. */
+  .sheet { width:100%; max-width:100%; margin-bottom:0; border-radius:20px 20px 0 0;
+    max-height:92dvh; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
 }
 
 /* ===========================================================================

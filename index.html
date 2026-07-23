@@ -12,7 +12,11 @@
     <header class="topbar">
       <div class="wordmark">cyclo<span class="grain">●</span></div>
       <div class="lights">
-        <span class="dot rec" title="record"></span>
+        <!-- RECORD is core ("record weird sounds on the bus") — a first-class one-tap door from every
+             view, not buried behind the PADS "+" ADD sheet. Opens the record sheet (mic capture). -->
+        <button id="recBtn" class="rec-chip" type="button" title="Record a sound with the mic" aria-label="Record a sound">
+          <span class="rec-chip-dot" aria-hidden="true"></span><span class="rec-chip-label">REC</span>
+        </button>
         <span id="playDot" class="dot play" title="transport"></span>
       </div>
       <div class="bpmwrap">
@@ -373,7 +377,7 @@
         </div>
       </div>
 
-      <div id="status" class="status">booting…</div>
+      <div id="status" class="status" role="status" aria-live="polite">booting…</div>
     </main>
 
     <footer class="foot">

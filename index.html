@@ -58,7 +58,7 @@
           <button id="subPads"   class="subtab on" type="button" role="tab" aria-selected="true">PADS</button>
           <button id="subKeys"   class="subtab"    type="button" role="tab" aria-selected="false">KEYS</button>
           <button id="subChords" class="subtab"    type="button" role="tab" aria-selected="false">CHORDS</button>
-          <button id="subStep"   class="subtab"    type="button" role="tab" aria-selected="false">STEP</button>
+          <button id="subStep"   class="subtab"    type="button" role="tab" aria-selected="false">BEAT</button>
         </nav>
         <div id="padsPane" class="mpane">
           <div id="padgrid" class="padgrid" aria-label="pad grid"></div>
@@ -90,9 +90,10 @@
             <div class="sheet-title">Add a sound</div>
             <button id="addClose" class="fx-close" type="button" aria-label="close">&times;</button>
           </div>
-          <div class="sheet-sub">Record it now, or bring in a file.</div>
+          <div class="sheet-sub">Record it, hum a tune, or bring in a file.</div>
           <button id="addRecBtn" class="sheet-key" type="button"><span class="sheet-glyph">●</span> Record with the mic</button>
-          <button id="addFileBtn" class="sheet-key" type="button"><span class="sheet-glyph">▤</span> Import from a file</button>
+          <button id="addHumBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#9834;</span> Hum a melody</button>
+          <button id="addFileBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#9636;</span> Import from a file</button>
           <!-- the SOUND PICKER / BANK BROWSER (native SoundPicker + BankBrowser): every sound grouped
                (kit / this song / persistent library), tap to audition, KEEP across projects -->
           <button id="addBrowseBtn" class="sheet-key" type="button"><span class="sheet-glyph">◈</span> Browse sounds &amp; library</button>
@@ -161,6 +162,21 @@
         </div>
       </div>
 
+      <!-- SHARE-honesty sheet: shown BEFORE sharing only when the song uses the user's OWN recordings,
+           which can't ride a text link. Offer the bundle (with the sounds) or a link anyway — so a link
+           that would silently lie is never sent unknowingly (the core "song = link" promise stays true). -->
+      <div id="shareSheet" class="sheet-scrim hidden" role="dialog" aria-modal="true" aria-label="share this song">
+        <div class="sheet">
+          <div class="score-head">
+            <div class="sheet-title">Share this song</div>
+            <button id="shareSheetClose" class="fx-close" type="button" aria-label="close">&times;</button>
+          </div>
+          <div class="sheet-sub">Your own recordings (<span id="shareUnknownList"></span>) can't travel in a link — only their names do, so they won't play for whoever opens it. Send a bundle to include the actual sounds.</div>
+          <button id="shareBundleBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#8595;</span> Send a bundle (with your sounds)</button>
+          <button id="shareLinkAnywayBtn" class="sheet-key" type="button"><span class="sheet-glyph">&#128279;</span> Share a link anyway (recordings left out)</button>
+        </div>
+      </div>
+
       <!-- hidden file input for opening a .cyclo / .cyclobundle from disk -->
       <input id="cycloInput" type="file" accept=".cyclo,.cyclobundle,.zip,application/zip,text/plain" style="display:none">
 
@@ -172,7 +188,7 @@
             <div class="sheet-title">Your songs</div>
             <button id="filesClose" class="fx-close" type="button" aria-label="close">&times;</button>
           </div>
-          <div class="sheet-sub"><span id="autosaveNote" class="autosave-note">your last session is saved automatically</span></div>
+          <div class="sheet-sub"><span id="autosaveNote" class="autosave-note">this session autosaves — Save it as a song to start a new one</span></div>
           <div class="save-row">
             <input id="projName" class="name-input" type="text" autocomplete="off" spellcheck="false" maxlength="40" placeholder="name this song">
             <button id="projSaveBtn" class="sheet-ok" type="button">Save</button>
@@ -330,6 +346,10 @@
           <button id="codeFxBtn" class="code-tool" type="button" title="FX rack — the effect chain on this section">
             <span class="code-tool-glyph" aria-hidden="true">&#10022;</span> FX
           </button>
+          <!-- the language REFERENCE, one tap from where you're writing (native ReferenceOverlay) -->
+          <button id="codeRefBtn" class="code-tool" type="button" title="Language reference — every token, transform, signal and keyword">
+            <span class="code-tool-glyph" aria-hidden="true">?</span> REF
+          </button>
         </div>
         <!-- one-tap mini-notation punctuation, right under the code screen (above the mobile
              keyboard). Built by src/symbolrow.js; a tap inserts at the caret with smart caret
@@ -352,7 +372,7 @@
         <!-- one-tap Share: the whole song IS this link (every song is a link) -->
         <button id="shareBtn" class="share" type="button" disabled title="Share this song as a link">SHARE</button>
         <!-- FILES: save/open named projects + download a .cyclo / bundle (durable + portable) -->
-        <button id="filesBtn" class="share" type="button" disabled title="Save, open, or download your songs">FILES</button>
+        <button id="filesBtn" class="share" type="button" disabled title="Your songs — save, open, or download">SONGS</button>
         <!-- MORE overflow door: collapses the secondary reward doors (medals / time travel / help)
              behind one quiet door — a keyboard-reachable, Escape-closable menu sheet -->
         <button id="moreBtn" class="share more-door" type="button" disabled aria-haspopup="dialog" aria-expanded="false" aria-controls="moreSheet" title="More — medals, time travel, and the language reference">MORE</button>
@@ -374,6 +394,9 @@
           <button id="historyBtn" class="sheet-key" type="button" disabled title="Time travel — rewind to any earlier version"><span class="sheet-glyph">&#8635;</span> Time travel <span id="historyCount" class="more-count">0</span></button>
           <!-- HELP door (native ReferenceOverlay entry point): opens the browsable, searchable language reference -->
           <button id="helpBtn" class="sheet-key" type="button" disabled title="Language reference — every token, transform, signal and keyword"><span class="sheet-glyph">?</span> Language reference</button>
+          <!-- EXAMPLES door: the factory demo songs to learn from (also under SONGS) — surfaced here where
+               a curious returning user actually looks for "how do people make songs with this?" -->
+          <button id="examplesMoreBtn" class="sheet-key" type="button" title="Browse the built-in example songs"><span class="sheet-glyph">&#9834;</span> Browse examples</button>
         </div>
       </div>
 

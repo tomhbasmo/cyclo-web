@@ -198,6 +198,9 @@ body {
          transform:translateY(0) scale(1); }
 }
 .playhint { margin:14px 2px 2px; font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); }
+/* PADS capture cue: a pulsing red dot while the transport records your taps into the ## LIVE beat */
+.capturing-dot { color:#d9483a; font-weight:700; animation:capblink 1s ease-in-out infinite; }
+@keyframes capblink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 
 /* THE COIN, surfaced from PADS (P2/B2) — a quiet, dismissible pill that says the beat IS code and
    jumps to CODE on tap. On-brand porcelain, never loud (reward-only chrome stays off the body); the
@@ -450,6 +453,9 @@ body.overlay-lock { overflow:hidden; }
   box-shadow:0 2px 0 #d9c4bc; transition:transform .05s, box-shadow .05s, background .12s;
 }
 .proj-del:hover { background:#fbeee9; }
+/* armed (tap-to-confirm) state — the destructive intent is now obvious before it happens */
+.proj-del.armed { background:#c0562a; color:#fff; box-shadow:0 3px 0 #8f3f1e; }
+.proj-del.armed:hover { background:#b04e26; }
 .proj-del:active { transform:translateY(2px); box-shadow:0 1px 0 #d9c4bc; }
 .proj-del:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 

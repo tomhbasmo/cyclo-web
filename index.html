@@ -14,8 +14,8 @@
       <div class="lights">
         <!-- RECORD is core ("record weird sounds on the bus") — a first-class one-tap door from every
              view, not buried behind the PADS "+" ADD sheet. Opens the record sheet (mic capture). -->
-        <button id="recBtn" class="rec-chip" type="button" title="Record a sound with the mic" aria-label="Record a sound">
-          <span class="rec-chip-dot" aria-hidden="true"></span><span class="rec-chip-label">REC</span>
+        <button id="recBtn" class="rec-chip" type="button" title="Record a new sound from the mic" aria-label="Record a sound from the mic">
+          <span class="rec-chip-mic" aria-hidden="true">&#127908;</span><span class="rec-chip-label">MIC</span>
         </button>
         <span id="playDot" class="dot play" title="transport"></span>
       </div>
@@ -61,6 +61,19 @@
           <button id="subStep"   class="subtab"    type="button" role="tab" aria-selected="false">BEAT</button>
         </nav>
         <div id="padsPane" class="mpane">
+          <!-- TRY-A-BEAT: drum a pattern and hear it LOOP as a preview, then Keep it (writes the code) or
+               Discard it (song untouched). Nothing commits until Keep — so trying is always safe. -->
+          <div id="tryBar" class="try-bar">
+            <button id="tryStartBtn" class="try-start" type="button"><span class="try-dot" aria-hidden="true">●</span> Try a beat</button>
+            <div id="tryLive" class="try-live hidden">
+              <span class="try-flag"><span class="try-dot" aria-hidden="true">●</span> REC</span>
+              <button id="tryClearBtn" class="try-btn" type="button">Clear</button>
+              <button id="tryDiscardBtn" class="try-btn try-discard" type="button">Discard</button>
+              <button id="tryKeepBtn" class="try-btn try-keep" type="button">Keep</button>
+            </div>
+          </div>
+          <!-- the 16-step loop lane: the moving playhead + where your taps land (the quantize, visible) -->
+          <div id="stepLane" class="step-lane hidden" aria-hidden="true"></div>
           <div id="padgrid" class="padgrid" aria-label="pad grid"></div>
           <div class="playhint">tap a pad — it plays right now · drop an audio file to add your own</div>
           <!-- THE COIN, surfaced from PADS (P2/B2): the default surface writes no code, so this quiet,
